@@ -639,7 +639,7 @@ static int spi_engine_transfer_one_message(struct spi_master *master,
 	spi_engine->int_enable = int_enable;
 	spin_unlock_irqrestore(&spi_engine->lock, flags);
 
-	mod_timer(&spi_engine->watchdog_timer, jiffies + 5*HZ);
+	mod_timer(&spi_engine->watchdog_timer, jiffies + 100*HZ);
 
 	return 0;
 }
