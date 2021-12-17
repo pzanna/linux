@@ -209,15 +209,6 @@ static const int adxl367_samp_freq_tbl[][2] = {
 	[ADXL367_ODR_400HZ]  = {400, 0},
 };
 
-static const int adxl367_time_scale_tbl[] = {
-	[ADXL367_ODR_12P5HZ] = 1,
-	[ADXL367_ODR_25HZ]   = 2,
-	[ADXL367_ODR_50HZ]   = 4,
-	[ADXL367_ODR_100HZ]  = 8,
-	[ADXL367_ODR_200HZ]  = 16,
-	[ADXL367_ODR_400HZ]  = 32,
-};
-
 /* (g * 2) * 9.80665 * 1000000 / (2^14 - 1) */
 static const int adxl367_range_scale_tbl[][2] = {
 	[ADXL367_2G_RANGE] = {0, 2394347},
