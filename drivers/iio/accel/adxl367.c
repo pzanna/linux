@@ -978,9 +978,9 @@ static int adxl367_write_raw(struct iio_dev *indio_dev,
 	}
 }
 
-int adxl367_write_raw_get_fmt(struct iio_dev *indio_dev,
-			      struct iio_chan_spec const *chan,
-			      long info)
+static int adxl367_write_raw_get_fmt(struct iio_dev *indio_dev,
+				     struct iio_chan_spec const *chan,
+				     long info)
 {
 	switch (info) {
 	case IIO_CHAN_INFO_SCALE:
