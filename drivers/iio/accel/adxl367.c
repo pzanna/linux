@@ -1302,20 +1302,17 @@ out:
 	return ret;
 }
 
-static int adxl367_buffer_preenable(struct iio_dev *indio_dev)
-{
-	struct adxl367_state *st  = iio_priv(indio_dev);
-
-	return adxl367_set_temp_adc_mask_en(st, indio_dev->active_scan_mask,
-					    true);
-}
-
 static int adxl367_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct adxl367_state *st = iio_priv(indio_dev);
 	int ret;
 
 	mutex_lock(&st->lock);
+
+	ret = adxl367_set_temp_adc_mask_en(st, indio_dev->active_scan_mask,
+					   true);
+	if (ret)
+		goto out;
 
 	ret = adxl367_set_measure_en(st, false);
 	if (ret)
@@ -1357,6 +1354,11 @@ static int adxl367_buffer_predisable(struct iio_dev *indio_dev)
 		goto out;
 
 	ret = adxl367_set_measure_en(st, true);
+	if (ret)
+		return ret;
+
+	ret = adxl367_set_temp_adc_mask_en(st, indio_dev->active_scan_mask,
+					   false);
 
 out:
 	mutex_unlock(&st->lock);
@@ -1364,19 +1366,9 @@ out:
 	return ret;
 }
 
-static int adxl367_buffer_postdisable(struct iio_dev *indio_dev)
-{
-	struct adxl367_state *st = iio_priv(indio_dev);
-
-	return adxl367_set_temp_adc_mask_en(st, indio_dev->active_scan_mask,
-					    false);
-}
-
 static const struct iio_buffer_setup_ops adxl367_buffer_ops = {
-	.preenable = adxl367_buffer_preenable,
 	.postenable = adxl367_buffer_postenable,
 	.predisable = adxl367_buffer_predisable,
-	.postdisable = adxl367_buffer_postdisable,
 };
 
 static const struct iio_info adxl367_info = {
