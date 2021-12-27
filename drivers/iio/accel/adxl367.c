@@ -1182,8 +1182,7 @@ static ssize_t adxl367_get_fifo_enabled(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct adxl367_state *st = iio_priv(indio_dev);
+	struct adxl367_state *st = iio_priv(dev_to_iio_dev(dev));
 	enum adxl367_fifo_mode fifo_mode;
 	int ret;
 
@@ -1198,8 +1197,7 @@ static ssize_t adxl367_get_fifo_watermark(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct adxl367_state *st = iio_priv(indio_dev);
+	struct adxl367_state *st = iio_priv(dev_to_iio_dev(dev));
 	unsigned int fifo_watermark;
 
 	mutex_lock(&st->lock);
