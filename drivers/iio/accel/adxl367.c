@@ -1490,7 +1490,7 @@ static int adxl367_setup(struct adxl367_state *st)
 	if (ret)
 		return ret;
 
-	ret = _adxl367_set_act_threshold(st, ADXL367_ACTIVITY,
+	ret = _adxl367_set_act_threshold(st, ADXL367_INACTIVITY,
 					 ADXL367_2G_RANGE_100MG);
 	if (ret)
 		return ret;
