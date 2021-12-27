@@ -917,7 +917,7 @@ static int adxl367_read_raw(struct iio_dev *indio_dev,
 			mutex_unlock(&st->lock);
 			return IIO_VAL_INT_PLUS_NANO;
 		case IIO_TEMP:
-			*val = 1;
+			*val = 1000;
 			*val2 = ADXL367_TEMP_PER_C;
 			return IIO_VAL_FRACTIONAL;
 		case IIO_VOLTAGE:
