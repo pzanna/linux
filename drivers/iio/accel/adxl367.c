@@ -856,8 +856,10 @@ static bool adxl367_push_fifo_data(struct iio_dev *indio_dev, u8 status,
 	fifo_entries -= fifo_entries % st->fifo_set_size;
 
 	ret = st->ops->read_fifo(st->context, st->fifo_buf, fifo_entries);
-	if (ret)
-		return false;
+	if (ret) {
+		dev_err(st->dev, "Failed to read FIFO: %d\n", ret);
+		return true;
+	}
 
 	for (i = 0; i < fifo_entries; i += st->fifo_set_size)
 		iio_push_to_buffers(indio_dev, &st->fifo_buf[i]);
