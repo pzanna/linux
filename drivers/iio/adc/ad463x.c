@@ -345,6 +345,7 @@ static int ad463x_set_sampling_freq(struct ad463x_state *st,
 	conversion_state.period = AD463X_FREQ_TO_PERIOD(freq);
 	conversion_state.duty_cycle = AD463X_TRIGGER_PULSE_WIDTH_NS;
 	conversion_state.offset = 0;
+	// conversion_state.enabled = true;
 	
 	ret = pwm_apply_state(st->conversion_trigger, &conversion_state);
 	if (ret < 0)
@@ -353,6 +354,7 @@ static int ad463x_set_sampling_freq(struct ad463x_state *st,
 	spi_trigger_state.duty_cycle = conversion_state.duty_cycle ;
 	spi_trigger_state.period = conversion_state.period;
 	spi_trigger_state.offset = 10;
+	spi_trigger_state.enabled = true;
 
 	if (st->phy.out_data_mode == AD463X_30_AVERAGED_DIFF)
 		spi_trigger_state.period *= st->phy.num_avg_samples;
@@ -378,12 +380,12 @@ static int ad463x_set_conversion(struct ad463x_state *st, bool enabled)
 	if (ret < 0)
 		return ret;
 
-	pwm_get_state(st->spi_engine_trigger, &spi_trigger_state);
-	spi_trigger_state.enabled = enabled;
+	// pwm_get_state(st->spi_engine_trigger, &spi_trigger_state);
+	// spi_trigger_state.enabled = enabled;
 
-	ret = pwm_apply_state(st->spi_engine_trigger, &spi_trigger_state);
-	if (ret < 0)
-		return ret;		
+	// ret = pwm_apply_state(st->spi_engine_trigger, &spi_trigger_state);
+	// if (ret < 0)
+	// 	return ret;		
 
 	return 0;
 }
@@ -415,18 +417,26 @@ static int ad463x_set_avg_frame_len(struct iio_dev *dev,
 
 	if (st->phy.out_data_mode != AD463X_30_AVERAGED_DIFF || avg_len == 0)
 		return -EINVAL;
-
-	// ret = ad463x_spi_write_reg(st, AD463X_REG_AVG, AD463X_AVG_FILTER_RESET);
-	// if (ret < 0)
-	// 	return ret;
 	
+	st->phy.num_avg_samples = 1 << avg_len;
+
+	ad463x_set_conversion(st, false);
+
+	ret = ad463x_spi_write_reg(st, AD463X_REG_AVG, AD463X_AVG_FILTER_RESET);
+	if (ret < 0)
+		return ret;
+
+	ret = ad463x_set_sampling_freq(st, st->sampling_frequency);
+	if (ret < 0)
+		return ret;
+
 	ret = ad463x_spi_write_reg(st, AD463X_REG_AVG, avg_len);
 	if (ret < 0)
 		return ret;
 
-	st->phy.num_avg_samples = 1 << avg_len;
-
-	return ad463x_set_sampling_freq(st, st->sampling_frequency);
+	ad463x_set_conversion(st, true);
+	
+	return ret;
 }
 
 static int ad463x_get_pwr_mode(struct iio_dev *dev,
@@ -641,9 +651,9 @@ static int ad463x_write_raw(struct iio_dev *indio_dev,
 		if (val > 1)
 			return -EINVAL;
 
-		return ad463x_set_chan_gain(st, chan->channel, val, val2);
+		return ad463x_set_chan_gain(st, chan->scan_index, val, val2);
 	case IIO_CHAN_INFO_OFFSET:
-		return ad463x_set_chan_offset(st, chan->channel, val);
+		return ad463x_set_chan_offset(st, chan->scan_index, val);
 	default:
 		return -EINVAL;
 	}
@@ -686,6 +696,7 @@ static int ad463x_setup(struct ad463x_state *st)
 	if (ret < 0)
 		return ret;
 
+	ad463x_set_conversion(st, false);
 	return ad463x_set_sampling_freq(st, 1000000);
 }
 
@@ -721,6 +732,7 @@ static int ad463x_buffer_preenable(struct iio_dev *indio_dev)
 	ret = ad463x_set_reg_access(st, false);
 	if (ret < 0)
 		return ret;
+	ad463x_set_conversion(st, true);
 
 	spi_bus_lock(st->spi->master);
 	spi_message_init(&msg);
@@ -728,7 +740,7 @@ static int ad463x_buffer_preenable(struct iio_dev *indio_dev)
 	spi_engine_offload_load_msg(st->spi, &msg);
 	spi_engine_offload_enable(st->spi, true);
 
-	return ad463x_set_conversion(st, true);
+	return ret;
 }
 
 static int ad463x_buffer_postdisable(struct iio_dev *indio_dev)
@@ -744,6 +756,7 @@ static int ad463x_buffer_postdisable(struct iio_dev *indio_dev)
 		return ret;
 
 	return ad463x_set_conversion(st, false);
+	// return ret;
 }
 
 static void ad463x_cnv_diasble(void *data)
