@@ -111,6 +111,17 @@ static int ad4130_update_bits(struct ad4130_state *st, unsigned int reg,
 #define ad4130_update_field_bits(st, reg, mask, val) \
 	ad4130_update_bits(st, reg, mask, FIELD_PREP(mask, val))
 
+static int ad4130_reg_access(struct iio_dev *indio_dev, unsigned int reg,
+			     unsigned int writeval, unsigned int *readval)
+{
+	struct ad4130_state *st = iio_priv(indio_dev);
+
+	if (readval)
+		return ad4130_read(st, reg, readval);
+
+	return ad4130_write(st, reg, writeval);
+}
+
 static int ad4130_update_scan_mode(struct iio_dev *indio_dev,
 				   const unsigned long *scan_mask)
 {
@@ -133,6 +144,7 @@ static int ad4130_update_scan_mode(struct iio_dev *indio_dev,
 
 static const struct iio_info ad4130_info = {
 	.update_scan_mode = ad4130_update_scan_mode,
+	.debugfs_reg_access = ad4130_reg_access,
 };
 
 static const struct ad_sigma_delta_info ad4130_sigma_delta_info = {
