@@ -255,7 +255,11 @@ static int ad4130_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	return 0;
+	ret = devm_ad_sd_setup_buffer_and_trigger(&spi->dev, indio_dev);
+	if (ret < 0)
+		return ret;
+
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static struct ad4130_chip_info ad4130_chip_info_tbl[] = {
