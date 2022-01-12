@@ -37,6 +37,9 @@
 
 #define AD4130_REG_ID			0x05
 
+#define AD4130_REG_CHANNEL_X(x)		(0x09 + (x))
+#define AD4130_CHANNEL_EN_MASK		BIT(23)
+
 #define AD4130_SEQUENCER_SLOTS		16
 #define AD4130_RESET_CLK_COUNT		64
 
@@ -46,6 +49,11 @@ static const unsigned int ad4130_reg_size[] = {
 	[AD4130_REG_DATA] = 2,
 	[AD4130_REG_IO_CONTROL] = 2,
 	[AD4130_REG_ID] = 1,
+	[
+		AD4130_REG_CHANNEL_X(0)
+		...
+		AD4130_REG_CHANNEL_X(AD4130_SEQUENCER_SLOTS)
+	] = 3,
 };
 
 enum ad4130_id {
@@ -103,7 +111,28 @@ static int ad4130_update_bits(struct ad4130_state *st, unsigned int reg,
 #define ad4130_update_field_bits(st, reg, mask, val) \
 	ad4130_update_bits(st, reg, mask, FIELD_PREP(mask, val))
 
+static int ad4130_update_scan_mode(struct iio_dev *indio_dev,
+				   const unsigned long *scan_mask)
+{
+	struct ad4130_state *st = iio_priv(indio_dev);
+	bool enabled;
+	int ret;
+	int i;
+
+	for (i = 0; i < indio_dev->num_channels; i++) {
+		enabled = test_bit(i, scan_mask);
+		ret = ad4130_update_field_bits(st, AD4130_REG_CHANNEL_X(i),
+					       AD4130_CHANNEL_EN_MASK,
+					       enabled);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static const struct iio_info ad4130_info = {
+	.update_scan_mode = ad4130_update_scan_mode,
 };
 
 static const struct ad_sigma_delta_info ad4130_sigma_delta_info = {
