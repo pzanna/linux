@@ -155,34 +155,6 @@ static const struct ad_sigma_delta_info ad4130_sigma_delta_info = {
 	.irq_flags = IRQF_TRIGGER_FALLING,
 };
 
-static int ad4130_soft_reset(struct ad4130_state *st)
-{
-	unsigned int val, timeout;
-	int ret;
-
-	ret = ad_sd_reset(&st->sd, AD4130_RESET_CLK_COUNT);
-	if (ret < 0)
-		return ret;
-
-	usleep_range(2000, 3000);
-
-	timeout = 100;
-	do {
-		ret = ad4130_read(st, AD4130_REG_STATUS, &val);
-		if (ret < 0)
-			return ret;
-
-		if (!(val & AD4130_STATUS_POR_FLAG_MSK))
-			return 0;
-
-		usleep_range(2000, 3000);
-	} while (--timeout);
-
-	dev_err(&st->sd.spi->dev, "Soft reset failed\n");
-
-	return -EIO;
-}
-
 static int ad4130_setup(struct ad4130_state *st)
 {
 	int ret;
@@ -218,6 +190,34 @@ static int ad4130_setup(struct ad4130_state *st)
 		return ret;
 
 	return 0;
+}
+
+static int ad4130_soft_reset(struct ad4130_state *st)
+{
+	unsigned int val, timeout;
+	int ret;
+
+	ret = ad_sd_reset(&st->sd, AD4130_RESET_CLK_COUNT);
+	if (ret < 0)
+		return ret;
+
+	usleep_range(2000, 3000);
+
+	timeout = 100;
+	do {
+		ret = ad4130_read(st, AD4130_REG_STATUS, &val);
+		if (ret < 0)
+			return ret;
+
+		if (!(val & AD4130_STATUS_POR_FLAG_MSK))
+			return 0;
+
+		usleep_range(2000, 3000);
+	} while (--timeout);
+
+	dev_err(&st->sd.spi->dev, "Soft reset failed\n");
+
+	return -EIO;
 }
 
 static int ad4130_probe(struct spi_device *spi)
