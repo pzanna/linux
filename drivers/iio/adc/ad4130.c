@@ -40,7 +40,7 @@
 #define AD4130_REG_CHANNEL_X(x)		(0x09 + (x))
 #define AD4130_CHANNEL_EN_MASK		BIT(23)
 
-#define AD4130_SEQUENCER_SLOTS		16
+#define AD4130_MAX_CHANNELS		16
 #define AD4130_RESET_CLK_COUNT		64
 
 static const unsigned int ad4130_reg_size[] = {
@@ -52,7 +52,7 @@ static const unsigned int ad4130_reg_size[] = {
 	[
 		AD4130_REG_CHANNEL_X(0)
 		...
-		AD4130_REG_CHANNEL_X(AD4130_SEQUENCER_SLOTS)
+		AD4130_REG_CHANNEL_X(AD4130_MAX_CHANNELS)
 	] = 3,
 };
 
@@ -240,7 +240,7 @@ static int ad4130_probe(struct spi_device *spi)
 	st->chip_info = info;
 
 	ad_sd_init(&st->sd, indio_dev, spi, &ad4130_sigma_delta_info);
-	st->sd.num_slots = AD4130_SEQUENCER_SLOTS;
+	st->sd.num_slots = AD4130_MAX_CHANNELS;
 	spi_set_drvdata(spi, indio_dev);
 
 	indio_dev->name = st->chip_info->name;
