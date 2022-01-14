@@ -4,6 +4,7 @@
  *
  * Copyright 2018 Analog Devices Inc.
  */
+#include <asm/unaligned.h>
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/clk.h>
@@ -13,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 
@@ -21,6 +23,10 @@
 #include <linux/iio/sysfs.h>
 
 #define AD4130_8_NAME			"ad4130-8"
+
+#define AD4130_REG_COMMS		0x00
+#define AD4130_COMMS_READ_MASK		BIT(6)
+#define AD4130_COMMS_REG_MASK		GENMASK(5, 0)
 
 #define AD4130_REG_STATUS		0x00
 #define AD4130_STATUS_POR_FLAG_MSK	BIT(4)
@@ -41,6 +47,9 @@
 
 #define AD4130_MAX_CHANNELS		16
 #define AD4130_RESET_CLK_COUNT		64
+#define AD4130_RESET_BUF_SIZE		(AD4130_RESET_CLK_COUNT / 8)
+#define AD4130_SOFT_RESET_SLEEP		2000
+#define AD4130_SOFT_RESET_TIMEOUT	(AD4130_SOFT_RESET_SLEEP * 100)
 
 static const unsigned int ad4130_reg_size[] = {
 	[AD4130_REG_STATUS] = 1,
@@ -69,7 +78,17 @@ struct ad4130_chip_info {
 
 struct ad4130_state {
 	const struct ad4130_chip_info	*chip_info;
-	struct ad_sigma_delta		sd;
+	struct spi_device		*spi;
+	struct regmap			*regmap;
+
+	/*
+	 * DMA (thus cache coherency maintenance) requires the
+	 * transfer buffers to live in their own cache lines.
+	 */
+	u8			reset_buf[AD4130_RESET_BUF_SIZE];
+	u8			reg_write_tx_buf[4] ____cacheline_aligned;
+	u8			reg_read_tx_buf[1];
+	u8			reg_read_rx_buf[3];
 };
 
 static const struct iio_chan_spec ad4130_channel_template = {
@@ -85,69 +104,114 @@ static const struct iio_chan_spec ad4130_channel_template = {
 	},
 };
 
-static int ad4130_read(struct ad4130_state *st, unsigned int reg,
-		       unsigned int *val)
+static int ad4130_get_reg_size(struct ad4130_state *st, unsigned int reg,
+			       unsigned int *size)
 {
 	if (reg >= ARRAY_SIZE(ad4130_reg_size))
 		return -EINVAL;
 
-	return ad_sd_read_reg(&st->sd, reg, ad4130_reg_size[reg], val);
+	*size = ad4130_reg_size[reg];
+
+	return 0;
 }
 
-static int ad4130_write(struct ad4130_state *st, unsigned int reg,
-			unsigned int val)
+static int ad4130_reg_write(void *context, unsigned int reg, unsigned int val)
 {
-	if (reg >= ARRAY_SIZE(ad4130_reg_size))
-		return -EINVAL;
-
-	return ad_sd_write_reg(&st->sd, reg, ad4130_reg_size[reg], val);
-}
-
-static int ad4130_update_bits(struct ad4130_state *st, unsigned int reg,
-			      unsigned int mask, unsigned int val)
-{
-	unsigned int tmp;
+	struct ad4130_state *st = context;
+	struct spi_transfer t = {
+		.tx_buf = st->reg_write_tx_buf,
+	};
+	unsigned int size;
 	int ret;
 
-	ret = ad4130_read(st, reg, &tmp);
+	ret = ad4130_get_reg_size(st, reg, &size);
 	if (ret)
 		return ret;
 
-	tmp &= ~mask;
-	val &= mask;
-	tmp |= val;
+	st->reg_write_tx_buf[0] = FIELD_PREP(AD4130_COMMS_REG_MASK, reg);
+	t.len = size + 1;
 
-	return ad4130_write(st, reg, tmp);
+	switch (size) {
+	case 3:
+		put_unaligned_be24(val, &st->reg_write_tx_buf[1]);
+		break;
+	case 2:
+		put_unaligned_be16(val, &st->reg_write_tx_buf[1]);
+		break;
+	case 1:
+		st->reg_write_tx_buf[1] = val;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return spi_sync_transfer(st->spi, &t, 1);
 }
 
-#define ad4130_update_field_bits(st, reg, mask, val) \
-	ad4130_update_bits(st, reg, mask, FIELD_PREP(mask, val))
+static int ad4130_reg_read(void *context, unsigned int reg, unsigned int *val)
+{
+	struct ad4130_state *st = context;
+	struct spi_transfer t[2] = {
+		{
+			.tx_buf = st->reg_read_tx_buf,
+			.len = sizeof(st->reg_read_tx_buf),
+		},
+		{
+			.rx_buf = st->reg_read_rx_buf,
+		},
+	};
+	unsigned int size;
+	int ret;
+
+	ret = ad4130_get_reg_size(st, reg, &size);
+	if (ret)
+		return ret;
+
+	st->reg_read_tx_buf[0] = AD4130_COMMS_READ_MASK |
+				 FIELD_PREP(AD4130_COMMS_REG_MASK, reg);
+	t[1].len = size;
+
+	ret = spi_sync_transfer(st->spi, t, ARRAY_SIZE(t));
+	if (ret)
+		return ret;
+
+	switch (size) {
+	case 3:
+		*val = get_unaligned_be24(st->reg_read_rx_buf);
+		break;
+	case 2:
+		*val = get_unaligned_be16(st->reg_read_rx_buf);
+		break;
+	case 1:
+		*val = st->reg_read_rx_buf[0];
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return 0;
+}
+
+static const struct regmap_config ad4130_regmap_config = {
+	.reg_read = ad4130_reg_read,
+	.reg_write = ad4130_reg_write,
+};
 
 static int ad4130_set_channel_enable(struct ad4130_state *st,
 				     unsigned int channel, bool status)
 {
-	return ad4130_update_field_bits(st, AD4130_REG_CHANNEL_X(channel),
-					AD4130_CHANNEL_EN_MASK,
-					status);
+	return regmap_update_bits(st->regmap, AD4130_REG_CHANNEL_X(channel),
+				  AD4130_CHANNEL_EN_MASK,
+				  FIELD_PREP(AD4130_CHANNEL_EN_MASK, status));
 }
 
 static int ad4130_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val, int *val2, long info)
 {
-	struct ad4130_state *st = iio_priv(indio_dev);
-	int ret;
-
 	switch (info) {
 	case IIO_CHAN_INFO_RAW:
-		ret = ad_sigma_delta_single_conversion(indio_dev, chan, val);
-		if (ret)
-			return ret;
-
-		ret = ad4130_set_channel_enable(st, chan->address, false);
-		if (ret)
-			return ret;
-
 		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
@@ -160,9 +224,9 @@ static int ad4130_reg_access(struct iio_dev *indio_dev, unsigned int reg,
 	struct ad4130_state *st = iio_priv(indio_dev);
 
 	if (readval)
-		return ad4130_read(st, reg, readval);
+		return ad4130_reg_read(st, reg, readval);
 
-	return ad4130_write(st, reg, writeval);
+	return ad4130_reg_write(st, reg, writeval);
 }
 
 static int ad4130_update_scan_mode(struct iio_dev *indio_dev,
@@ -189,14 +253,6 @@ static const struct iio_info ad4130_info = {
 	.debugfs_reg_access = ad4130_reg_access,
 };
 
-static const struct ad_sigma_delta_info ad4130_sigma_delta_info = {
-	.has_registers = true,
-	.addr_shift = 0,
-	.read_mask = BIT(6),
-	.data_reg = AD4130_REG_DATA,
-	.irq_flags = IRQF_TRIGGER_FALLING,
-};
-
 static int ad4130_setup(struct ad4130_state *st)
 {
 	int ret;
@@ -217,17 +273,18 @@ static int ad4130_setup(struct ad4130_state *st)
 	 *
 	 * Use P1.
 	 */
-	ret = ad4130_update_field_bits(st, AD4130_REG_IO_CONTROL,
-				       AD4130_INT_PIN_SEL_MASK,
-				       AD4130_INT_PIN_P1);
+	ret = regmap_update_bits(st->regmap, AD4130_REG_IO_CONTROL,
+				 AD4130_INT_PIN_SEL_MASK,
+				 FIELD_PREP(AD4130_INT_PIN_SEL_MASK,
+					    AD4130_INT_PIN_P1));
 	if (ret)
 		return ret;
 
 	/*
 	 * Switch to SPI 4-wire mode.
 	 */
-	ret = ad4130_update_field_bits(st, AD4130_REG_ADC_CONTROL,
-				       AD4130_CSB_EN_MASK, 1);
+	ret = regmap_update_bits(st->regmap, AD4130_REG_ADC_CONTROL,
+				 AD4130_CSB_EN_MASK, AD4130_CSB_EN_MASK);
 	if (ret)
 		return ret;
 
@@ -236,30 +293,23 @@ static int ad4130_setup(struct ad4130_state *st)
 
 static int ad4130_soft_reset(struct ad4130_state *st)
 {
-	unsigned int val, timeout;
+	unsigned int val;
 	int ret;
 
-	ret = ad_sd_reset(&st->sd, AD4130_RESET_CLK_COUNT);
+	ret = spi_write(st->spi, st->reset_buf, sizeof(st->reset_buf));
 	if (ret)
 		return ret;
 
-	usleep_range(2000, 3000);
+	ret = regmap_read_poll_timeout(st->regmap, AD4130_REG_STATUS, val,
+				       !(val & AD4130_STATUS_POR_FLAG_MSK),
+				       AD4130_SOFT_RESET_SLEEP,
+				       AD4130_SOFT_RESET_TIMEOUT);
+	if (ret) {
+		dev_err(&st->spi->dev, "Soft reset failed\n");
+		return ret;
+	}
 
-	timeout = 100;
-	do {
-		ret = ad4130_read(st, AD4130_REG_STATUS, &val);
-		if (ret)
-			return ret;
-
-		if (!(val & AD4130_STATUS_POR_FLAG_MSK))
-			return 0;
-
-		usleep_range(2000, 3000);
-	} while (--timeout);
-
-	dev_err(&st->sd.spi->dev, "Soft reset failed\n");
-
-	return -EIO;
+	return 0;
 }
 
 static int ad4130_probe(struct spi_device *spi)
@@ -279,15 +329,18 @@ static int ad4130_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 
+	memset(st->reset_buf, 0xff, AD4130_RESET_BUF_SIZE);
 	st->chip_info = info;
-
-	ad_sd_init(&st->sd, indio_dev, spi, &ad4130_sigma_delta_info);
-	st->sd.num_slots = AD4130_MAX_CHANNELS;
-	spi_set_drvdata(spi, indio_dev);
+	st->spi = spi;
 
 	indio_dev->name = st->chip_info->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ad4130_info;
+
+	st->regmap = devm_regmap_init(&spi->dev, NULL, st,
+				      &ad4130_regmap_config);
+	if (IS_ERR(st->regmap))
+		return PTR_ERR(st->regmap);
 
 	ret = ad4130_soft_reset(st);
 	if (ret)
@@ -297,20 +350,7 @@ static int ad4130_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = ad_sd_setup_buffer_and_trigger(indio_dev);
-	if (ret)
-		return ret;
-
 	return devm_iio_device_register(&spi->dev, indio_dev);
-}
-
-static int ad4130_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-
-	ad_sd_cleanup_buffer_and_trigger(indio_dev);
-
-	return 0;
 }
 
 static struct ad4130_chip_info ad4130_chip_info_tbl[] = {
@@ -359,7 +399,6 @@ static struct spi_driver ad4130_driver = {
 		.of_match_table = ad4130_of_match,
 	},
 	.probe = ad4130_probe,
-	.remove = ad4130_remove,
 };
 module_spi_driver(ad4130_driver);
 
