@@ -39,7 +39,10 @@
 
 #define AD4130_REG_IO_CONTROL		0x03
 #define AD4130_INT_PIN_SEL_MASK		GENMASK(9, 8)
+#define AD4130_INT_PIN_DOUT_OR_INT	0x0
 #define AD4130_INT_PIN_CLK		0x1
+#define AD4130_INT_PIN_P1		0x2
+#define AD4130_INT_PIN_DOUT		0x3
 
 #define AD4130_REG_ID			0x05
 
@@ -84,6 +87,7 @@ struct ad4130_state {
 	struct regmap			*regmap;
 
 	u32			int_pin_sel;
+	bool			dout_int_pin;
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
@@ -271,6 +275,19 @@ static int ad4310_parse_fw(struct ad4130_state *st)
 				       &st->int_pin_sel);
 	if (ret)
 		st->int_pin_sel = AD4130_INT_PIN_CLK;
+
+	if (st->int_pin_sel < AD4130_INT_PIN_DOUT_OR_INT ||
+	    st->int_pin_sel > AD4130_INT_PIN_DOUT) {
+		dev_err(dev, "Invalid interrupt pin %u\n", st->int_pin_sel);
+		return -EINVAL;
+	}
+
+	if (st->int_pin_sel == AD4130_INT_PIN_DOUT ||
+	    (st->int_pin_sel == AD4130_INT_PIN_DOUT_OR_INT &&
+	     !st->chip_info->has_int_pin)) {
+		dev_err(dev, "FIFO functionality disabled\n");
+		st->dout_int_pin = true;
+	}
 
 	return 0;
 }
