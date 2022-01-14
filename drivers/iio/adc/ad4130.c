@@ -111,7 +111,7 @@ static int ad4130_update_bits(struct ad4130_state *st, unsigned int reg,
 #define ad4130_update_field_bits(st, reg, mask, val) \
 	ad4130_update_bits(st, reg, mask, FIELD_PREP(mask, val))
 
-static int ad4130_set_channel_enable(struct ad4130_state *st
+static int ad4130_set_channel_enable(struct ad4130_state *st,
 				     unsigned int channel, bool status)
 {
 	return ad4130_update_field_bits(st, AD4130_REG_CHANNEL_X(channel),
