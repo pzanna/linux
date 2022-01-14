@@ -119,6 +119,29 @@ static int ad4130_set_channel_enable(struct ad4130_state *st,
 					status);
 }
 
+static int ad4130_read_raw(struct iio_dev *indio_dev,
+			   struct iio_chan_spec const *chan,
+			   int *val, int *val2, long info)
+{
+	struct ad4130_state *st = iio_priv(indio_dev);
+	int ret;
+
+	switch (info) {
+	case IIO_CHAN_INFO_RAW:
+		ret = ad_sigma_delta_single_conversion(indio_dev, chan, val);
+		if (ret)
+			return ret;
+
+		ret = ad4130_set_channel_enable(st, chan->address, false);
+		if (ret)
+			return ret;
+
+		return IIO_VAL_INT;
+	default:
+		return -EINVAL;
+	}
+}
+
 static int ad4130_reg_access(struct iio_dev *indio_dev, unsigned int reg,
 			     unsigned int writeval, unsigned int *readval)
 {
@@ -149,6 +172,7 @@ static int ad4130_update_scan_mode(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info ad4130_info = {
+	.read_raw = ad4130_read_raw,
 	.update_scan_mode = ad4130_update_scan_mode,
 	.debugfs_reg_access = ad4130_reg_access,
 };
