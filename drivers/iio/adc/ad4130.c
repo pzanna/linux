@@ -73,8 +73,9 @@ enum ad4130_id {
 };
 
 struct ad4130_chip_info {
-	const char *name;
-	u8 resolution;
+	const char	*name;
+	u8		resolution;
+	bool		has_int_pin;
 };
 
 struct ad4130_state {
@@ -375,18 +376,22 @@ static struct ad4130_chip_info ad4130_chip_info_tbl[] = {
 	[ID_AD4130_8_24_WLCSP] = {
 		.name = AD4130_8_NAME,
 		.resolution = 24,
+		.has_int_pin = true,
 	},
 	[ID_AD4130_8_24_LFCSP] = {
 		.name = AD4130_8_NAME,
 		.resolution = 24,
+		.has_int_pin = false,
 	},
 	[ID_AD4130_8_16_WLCSP] = {
 		.name = AD4130_8_NAME,
 		.resolution = 16,
+		.has_int_pin = true,
 	},
 	[ID_AD4130_8_16_LFCSP] = {
 		.name = AD4130_8_NAME,
 		.resolution = 16,
+		.has_int_pin = false,
 	},
 };
 
