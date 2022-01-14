@@ -262,6 +262,12 @@ static int ad4130_setup(struct ad4130_state *st)
 {
 	int ret;
 
+	/* Switch to SPI 4-wire mode. */
+	ret = regmap_update_bits(st->regmap, AD4130_REG_ADC_CONTROL,
+				 AD4130_CSB_EN_MASK, AD4130_CSB_EN_MASK);
+	if (ret)
+		return ret;
+
 	/*
 	 * On LFCSP packaged chips, it is possible to choose between DOUT/RDY,
 	 * CLK and P1 as the interrupt pin.
@@ -282,12 +288,6 @@ static int ad4130_setup(struct ad4130_state *st)
 				 AD4130_INT_PIN_SEL_MASK,
 				 FIELD_PREP(AD4130_INT_PIN_SEL_MASK,
 					    AD4130_INT_PIN_P1));
-	if (ret)
-		return ret;
-
-	/* Switch to SPI 4-wire mode. */
-	ret = regmap_update_bits(st->regmap, AD4130_REG_ADC_CONTROL,
-				 AD4130_CSB_EN_MASK, AD4130_CSB_EN_MASK);
 	if (ret)
 		return ret;
 
