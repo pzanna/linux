@@ -141,7 +141,7 @@ static int ad4130_update_scan_mode(struct iio_dev *indio_dev,
 	for (i = 0; i < indio_dev->num_channels; i++) {
 		status = test_bit(i, scan_mask);
 		ret = ad4130_set_channel_enable(st, i, status);
-		if (ret < 0)
+		if (ret)
 			return ret;
 	}
 
@@ -204,7 +204,7 @@ static int ad4130_soft_reset(struct ad4130_state *st)
 	int ret;
 
 	ret = ad_sd_reset(&st->sd, AD4130_RESET_CLK_COUNT);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	usleep_range(2000, 3000);
@@ -212,7 +212,7 @@ static int ad4130_soft_reset(struct ad4130_state *st)
 	timeout = 100;
 	do {
 		ret = ad4130_read(st, AD4130_REG_STATUS, &val);
-		if (ret < 0)
+		if (ret)
 			return ret;
 
 		if (!(val & AD4130_STATUS_POR_FLAG_MSK))
@@ -262,7 +262,7 @@ static int ad4130_probe(struct spi_device *spi)
 		return ret;
 
 	ret = devm_ad_sd_setup_buffer_and_trigger(&spi->dev, indio_dev);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
