@@ -39,7 +39,7 @@
 
 #define AD4130_REG_IO_CONTROL		0x03
 #define AD4130_INT_PIN_SEL_MASK		GENMASK(9, 8)
-#define AD4130_INT_PIN_P1		0x2
+#define AD4130_INT_PIN_CLK		0x1
 
 #define AD4130_REG_ID			0x05
 
@@ -272,7 +272,7 @@ static int ad4130_setup(struct ad4130_state *st)
 	ret = regmap_update_bits(st->regmap, AD4130_REG_IO_CONTROL,
 				 AD4130_INT_PIN_SEL_MASK,
 				 FIELD_PREP(AD4130_INT_PIN_SEL_MASK,
-					    AD4130_INT_PIN_P1));
+					    AD4130_INT_PIN_CLK));
 	if (ret)
 		return ret;
 
