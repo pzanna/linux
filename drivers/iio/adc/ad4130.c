@@ -206,6 +206,11 @@ static int ad4130_set_channel_enable(struct ad4130_state *st,
 				  FIELD_PREP(AD4130_CHANNEL_EN_MASK, status));
 }
 
+static irqreturn_t ad4130_irq_handler(int irq, void *private)
+{
+	return IRQ_HANDLED;
+}
+
 static int ad4130_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val, int *val2, long info)
@@ -349,6 +354,12 @@ static int ad4130_probe(struct spi_device *spi)
 	ret = ad4130_setup(st);
 	if (ret)
 		return ret;
+
+	ret = devm_request_threaded_irq(&spi->dev, spi->irq, NULL,
+					ad4130_irq_handler, IRQF_ONESHOT,
+					indio_dev->name, indio_dev);
+	if (ret)
+		return dev_err_probe(&spi->dev, ret, "Failed to request irq\n");
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }
