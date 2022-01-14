@@ -82,6 +82,8 @@ struct ad4130_state {
 	struct spi_device		*spi;
 	struct regmap			*regmap;
 
+	u32			int_pin_sel;
+
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
@@ -259,6 +261,19 @@ static const struct iio_info ad4130_info = {
 	.debugfs_reg_access = ad4130_reg_access,
 };
 
+static int ad4310_parse_fw(struct ad4130_state *st)
+{
+	struct device *dev = &st->spi->dev;
+	int ret;
+
+	ret = device_property_read_u32(dev, "adi,int-pin-sel",
+				       &st->int_pin_sel);
+	if (ret)
+		st->int_pin_sel = AD4130_INT_PIN_CLK;
+
+	return 0;
+}
+
 static int ad4130_setup(struct ad4130_state *st)
 {
 	int ret;
@@ -272,7 +287,7 @@ static int ad4130_setup(struct ad4130_state *st)
 	ret = regmap_update_bits(st->regmap, AD4130_REG_IO_CONTROL,
 				 AD4130_INT_PIN_SEL_MASK,
 				 FIELD_PREP(AD4130_INT_PIN_SEL_MASK,
-					    AD4130_INT_PIN_CLK));
+					    st->int_pin_sel));
 	if (ret)
 		return ret;
 
@@ -336,6 +351,10 @@ static int ad4130_probe(struct spi_device *spi)
 		return PTR_ERR(st->regmap);
 
 	ret = ad4130_soft_reset(st);
+	if (ret)
+		return ret;
+
+	ret = ad4310_parse_fw(st);
 	if (ret)
 		return ret;
 
