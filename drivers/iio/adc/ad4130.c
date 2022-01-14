@@ -285,9 +285,7 @@ static int ad4130_setup(struct ad4130_state *st)
 	if (ret)
 		return ret;
 
-	/*
-	 * Switch to SPI 4-wire mode.
-	 */
+	/* Switch to SPI 4-wire mode. */
 	ret = regmap_update_bits(st->regmap, AD4130_REG_ADC_CONTROL,
 				 AD4130_CSB_EN_MASK, AD4130_CSB_EN_MASK);
 	if (ret)
