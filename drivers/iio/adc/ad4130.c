@@ -285,11 +285,20 @@ static int ad4130_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = devm_ad_sd_setup_buffer_and_trigger(&spi->dev, indio_dev);
+	ret = ad_sd_setup_buffer_and_trigger(indio_dev);
 	if (ret)
 		return ret;
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
+}
+
+static int ad4130_remove(struct spi_device *spi)
+{
+	struct iio_dev *indio_dev = spi_get_drvdata(spi);
+
+	ad_sd_cleanup_buffer_and_trigger(indio_dev);
+
+	return 0;
 }
 
 static struct ad4130_chip_info ad4130_chip_info_tbl[] = {
@@ -338,6 +347,7 @@ static struct spi_driver ad4130_driver = {
 		.of_match_table = ad4130_of_match,
 	},
 	.probe = ad4130_probe,
+	.remove = ad4130_remove,
 };
 module_spi_driver(ad4130_driver);
 
