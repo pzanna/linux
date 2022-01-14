@@ -291,6 +291,11 @@ static int ad4130_setup(struct ad4130_state *st)
 	if (ret)
 		return ret;
 
+	/* First channel starts out as enabled, disable it. */
+	ret = ad4130_set_channel_enable(st, 0, false);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
