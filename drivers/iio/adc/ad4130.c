@@ -73,6 +73,19 @@ struct ad4130_state {
 	struct ad_sigma_delta		sd;
 };
 
+static const struct iio_chan_spec ad4130_channel_template = {
+	.type = IIO_VOLTAGE,
+	.indexed = 1,
+	.differential = 1,
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+	.scan_type = {
+		.sign = 'u',
+		.realbits = 24,
+		.storagebits = 32,
+		.endianness = IIO_BE,
+	},
+};
+
 static int ad4130_read(struct ad4130_state *st, unsigned int reg,
 		       unsigned int *val)
 {
