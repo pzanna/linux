@@ -268,22 +268,6 @@ static int ad4130_setup(struct ad4130_state *st)
 	if (ret)
 		return ret;
 
-	/*
-	 * On LFCSP packaged chips, it is possible to choose between DOUT/RDY,
-	 * CLK and P1 as the interrupt pin.
-	 *
-	 * On WLCSP packaged chips, it is also possible to choose the dedicated
-	 * INT pin as the interrupt pin.
-	 *
-	 * DOUT/RDY cannot be used for FIFO interrupts.
-	 *
-	 * Using the INT pin would require different configuration for LFCSP
-	 * chips.
-	 *
-	 * As a result, the only options remaining are CLK and P1.
-	 *
-	 * Use P1.
-	 */
 	ret = regmap_update_bits(st->regmap, AD4130_REG_IO_CONTROL,
 				 AD4130_INT_PIN_SEL_MASK,
 				 FIELD_PREP(AD4130_INT_PIN_SEL_MASK,
