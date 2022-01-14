@@ -111,6 +111,14 @@ static int ad4130_update_bits(struct ad4130_state *st, unsigned int reg,
 #define ad4130_update_field_bits(st, reg, mask, val) \
 	ad4130_update_bits(st, reg, mask, FIELD_PREP(mask, val))
 
+static int ad4130_set_channel_enable(struct ad4130_state *st
+				     unsigned int channel, bool status)
+{
+	return ad4130_update_field_bits(st, AD4130_REG_CHANNEL_X(channel),
+					AD4130_CHANNEL_EN_MASK,
+					status);
+}
+
 static int ad4130_reg_access(struct iio_dev *indio_dev, unsigned int reg,
 			     unsigned int writeval, unsigned int *readval)
 {
@@ -126,15 +134,13 @@ static int ad4130_update_scan_mode(struct iio_dev *indio_dev,
 				   const unsigned long *scan_mask)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
-	bool enabled;
+	bool status;
 	int ret;
 	int i;
 
 	for (i = 0; i < indio_dev->num_channels; i++) {
-		enabled = test_bit(i, scan_mask);
-		ret = ad4130_update_field_bits(st, AD4130_REG_CHANNEL_X(i),
-					       AD4130_CHANNEL_EN_MASK,
-					       enabled);
+		status = test_bit(i, scan_mask);
+		ret = ad4130_set_channel_enable(st, i, status);
 		if (ret < 0)
 			return ret;
 	}
