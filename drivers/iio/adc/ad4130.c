@@ -105,6 +105,8 @@ struct ad4130_state {
 	struct clk			*mclk;
 
 	struct gpio_chip		gc;
+	unsigned int			gpio_offsets[AD4130_MAX_GPIOS];
+	unsigned int			num_gpios;
 
 	u32			int_pin_sel;
 	bool			dout_int_pin;
@@ -331,6 +333,7 @@ static int ad4310_parse_fw(struct ad4130_state *st)
 	bool disabled_gpios[AD4130_MAX_GPIOS] = {0};
 	struct device *dev = &st->spi->dev;
 	int ret;
+	int i;
 
 	st->int_pin_sel = AD4130_INT_PIN_CLK;
 	device_property_read_u32(dev, "adi,int-pin-sel", &st->int_pin_sel);
@@ -373,6 +376,10 @@ static int ad4310_parse_fw(struct ad4130_state *st)
 			st->mclk_sel, st->int_pin_sel);
 		return -EINVAL;
 	}
+
+	for (i = 0; i < AD4130_MAX_GPIOS; i++)
+		if (!disabled_gpios[i])
+			st->gpio_offsets[st->num_gpios++] = i;
 
 	return 0;
 }
