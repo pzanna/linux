@@ -490,23 +490,25 @@ static int ad4130_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	st->gc.owner = THIS_MODULE;
-	st->gc.label = st->chip_info->name;
-	st->gc.base = -1;
-	st->gc.ngpio = AD4130_MAX_GPIOS;
-	st->gc.parent = &st->spi->dev;
-	st->gc.can_sleep = true;
-	st->gc.get_direction = ad4130_gpio_get_direction;
-	st->gc.direction_input = ad4130_gpio_direction_input;
-	st->gc.direction_output = ad4130_gpio_direction_output;
-	st->gc.get = ad4130_gpio_get;
-	st->gc.get_multiple = ad4130_gpio_get_multiple;
-	st->gc.set = ad4130_gpio_set;
-	st->gc.set_multiple = ad4130_gpio_set_multiple;
+	if (st->num_gpios) {
+		st->gc.owner = THIS_MODULE;
+		st->gc.label = st->chip_info->name;
+		st->gc.base = -1;
+		st->gc.ngpio = AD4130_MAX_GPIOS;
+		st->gc.parent = &st->spi->dev;
+		st->gc.can_sleep = true;
+		st->gc.get_direction = ad4130_gpio_get_direction;
+		st->gc.direction_input = ad4130_gpio_direction_input;
+		st->gc.direction_output = ad4130_gpio_direction_output;
+		st->gc.get = ad4130_gpio_get;
+		st->gc.get_multiple = ad4130_gpio_get_multiple;
+		st->gc.set = ad4130_gpio_set;
+		st->gc.set_multiple = ad4130_gpio_set_multiple;
 
-	ret = devm_gpiochip_add_data(&spi->dev, &st->gc, st);
-	if (ret)
-		return ret;
+		ret = devm_gpiochip_add_data(&spi->dev, &st->gc, st);
+		if (ret)
+			return ret;
+	}
 
 	irq_set_status_flags(spi->irq, IRQ_NOAUTOEN);
 	ret = devm_request_threaded_irq(&spi->dev, spi->irq, NULL,
