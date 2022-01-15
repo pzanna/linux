@@ -359,9 +359,8 @@ static int ad4310_parse_fw(struct ad4130_state *st)
 	if (st->standby_out_en)
 		disabled_gpios[AD4130_P3_INDEX] = true;
 
-	ret = device_property_read_u32(dev, "adi,mclk-sel", &st->mclk_sel);
-	if (ret)
-		st->mclk_sel = AD4130_MCLK_76_8KHZ;
+	st->mclk_sel = AD4130_MCLK_76_8KHZ;
+	device_property_read_u32(dev, "adi,mclk-sel", &st->mclk_sel);
 
 	if (st->mclk_sel < AD4130_MCLK_76_8KHZ ||
 	    st->mclk_sel > AD4130_MCLK_153_6KHZ_EXT) {
