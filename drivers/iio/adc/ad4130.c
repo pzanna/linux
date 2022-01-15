@@ -11,6 +11,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
@@ -49,12 +50,15 @@
 #define AD4130_INT_PIN_CLK		0x1
 #define AD4130_INT_PIN_P1		0x2
 #define AD4130_INT_PIN_DOUT		0x3
+#define AD4130_GPIO_DATA_MASK		GENMASK(7, 4)
+#define AD4130_GPIO_CTRL_MASK		GENMASK(3, 0)
 
 #define AD4130_REG_ID			0x05
 
 #define AD4130_REG_CHANNEL_X(x)		(0x09 + (x))
 #define AD4130_CHANNEL_EN_MASK		BIT(23)
 
+#define AD4130_MAX_GPIOS		4
 #define AD4130_MAX_CHANNELS		16
 #define AD4130_RESET_CLK_COUNT		64
 #define AD4130_RESET_BUF_SIZE		(AD4130_RESET_CLK_COUNT / 8)
@@ -92,6 +96,8 @@ struct ad4130_state {
 	struct spi_device		*spi;
 	struct regmap			*regmap;
 	struct clk			*mclk;
+
+	struct gpio_chip		gc;
 
 	u32			int_pin_sel;
 	bool			dout_int_pin;
@@ -213,6 +219,44 @@ static const struct regmap_config ad4130_regmap_config = {
 	.reg_read = ad4130_reg_read,
 	.reg_write = ad4130_reg_write,
 };
+
+static int ad4130_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
+{
+	return 0;
+}
+
+static int ad4130_gpio_direction_input(struct gpio_chip *gc,
+				       unsigned int offset)
+{
+	return 0;
+}
+
+static int ad4130_gpio_direction_output(struct gpio_chip *gc,
+					unsigned int offset, int value)
+{
+	return 0;
+}
+
+static int ad4130_gpio_get(struct gpio_chip *gc, unsigned int offset)
+{
+	return 0;
+}
+
+static int ad4130_gpio_get_multiple(struct gpio_chip *gc, unsigned long *mask,
+				    unsigned long *bits)
+{
+	return 0;
+}
+
+static void ad4130_gpio_set(struct gpio_chip *gc, unsigned int offset,
+			    int value)
+{
+}
+
+static void ad4130_gpio_set_multiple(struct gpio_chip *gc, unsigned long *mask,
+				     unsigned long *bits)
+{
+}
 
 static int ad4130_set_channel_enable(struct ad4130_state *st,
 				     unsigned int channel, bool status)
@@ -414,6 +458,24 @@ static int ad4130_probe(struct spi_device *spi)
 		return ret;
 
 	ret = ad4130_setup(st);
+	if (ret)
+		return ret;
+
+	st->gc.owner = THIS_MODULE;
+	st->gc.label = st->chip_info->name;
+	st->gc.base = -1;
+	st->gc.ngpio = AD4130_MAX_GPIOS;
+	st->gc.parent = &st->spi->dev;
+	st->gc.can_sleep = true;
+	st->gc.get_direction = ad4130_gpio_get_direction;
+	st->gc.direction_input = ad4130_gpio_direction_input;
+	st->gc.direction_output = ad4130_gpio_direction_output;
+	st->gc.get = ad4130_gpio_get;
+	st->gc.get_multiple = ad4130_gpio_get_multiple;
+	st->gc.set = ad4130_gpio_set;
+	st->gc.set_multiple = ad4130_gpio_set_multiple;
+
+	ret = devm_gpiochip_add_data(&spi->dev, &st->gc, st);
 	if (ret)
 		return ret;
 
