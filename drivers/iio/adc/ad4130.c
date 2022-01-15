@@ -324,10 +324,8 @@ static int ad4310_parse_fw(struct ad4130_state *st)
 	struct device *dev = &st->spi->dev;
 	int ret;
 
-	ret = device_property_read_u32(dev, "adi,int-pin-sel",
-				       &st->int_pin_sel);
-	if (ret)
-		st->int_pin_sel = AD4130_INT_PIN_CLK;
+	st->int_pin_sel = AD4130_INT_PIN_CLK;
+	device_property_read_u32(dev, "adi,int-pin-sel", &st->int_pin_sel);
 
 	if (st->int_pin_sel < AD4130_INT_PIN_DOUT_OR_INT ||
 	    st->int_pin_sel > AD4130_INT_PIN_DOUT) {
