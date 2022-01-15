@@ -320,6 +320,7 @@ static const struct iio_info ad4130_info = {
 
 static int ad4310_parse_fw(struct ad4130_state *st)
 {
+	bool disabled_gpios[AD4130_MAX_GPIOS] = {0};
 	struct device *dev = &st->spi->dev;
 	int ret;
 
@@ -340,6 +341,9 @@ static int ad4310_parse_fw(struct ad4130_state *st)
 		dev_err(dev, "FIFO functionality disabled\n");
 		st->dout_int_pin = true;
 	}
+
+	if (st->int_pin_sel == AD4130_INT_PIN_P1)
+		disabled_gpios[0] = true;
 
 	ret = device_property_read_u32(dev, "adi,mclk-sel", &st->mclk_sel);
 	if (ret)
