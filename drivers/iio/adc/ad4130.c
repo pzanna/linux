@@ -62,6 +62,9 @@
 #define AD4130_STBY_OUT_EN_MASK		BIT(8)
 
 #define AD4130_MAX_GPIOS		4
+#define AD4130_P1_INDEX			0
+#define AD4130_P3_INDEX			2
+
 #define AD4130_MAX_CHANNELS		16
 #define AD4130_RESET_CLK_COUNT		64
 #define AD4130_RESET_BUF_SIZE		(AD4130_RESET_CLK_COUNT / 8)
@@ -346,12 +349,12 @@ static int ad4310_parse_fw(struct ad4130_state *st)
 	}
 
 	if (st->int_pin_sel == AD4130_INT_PIN_P1)
-		disabled_gpios[0] = true;
+		disabled_gpios[AD4130_P1_INDEX] = true;
 
 	st->standby_out_en = device_property_read_bool(dev, "adi,stby-out-en");
 
 	if (st->standby_out_en)
-		disabled_gpios[2] = true;
+		disabled_gpios[AD4130_P3_INDEX] = true;
 
 	ret = device_property_read_u32(dev, "adi,mclk-sel", &st->mclk_sel);
 	if (ret)
