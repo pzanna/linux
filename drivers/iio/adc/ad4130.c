@@ -35,6 +35,11 @@
 
 #define AD4130_REG_ADC_CONTROL		0x01
 #define AD4130_CSB_EN_MASK		BIT(9)
+#define AD4130_MCLK_SEL_MASK		GENMASK(1, 0)
+#define AD4130_MCLK_76_8KHZ		0x0
+#define AD4130_MCLK_76_8KHZ_OUT		0x1
+#define AD4130_MCLK_76_8KHZ_EXT		0x2
+#define AD4130_MCLK_153_6KHZ_EXT	0x3
 
 #define AD4130_REG_DATA			0x02
 
@@ -86,9 +91,11 @@ struct ad4130_state {
 	const struct ad4130_chip_info	*chip_info;
 	struct spi_device		*spi;
 	struct regmap			*regmap;
+	struct clk			*mclk;
 
 	u32			int_pin_sel;
 	bool			dout_int_pin;
+	u32			mclk_sel;
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
@@ -290,6 +297,24 @@ static int ad4310_parse_fw(struct ad4130_state *st)
 		st->dout_int_pin = true;
 	}
 
+	ret = device_property_read_u32(dev, "adi,mclk-sel", &st->mclk_sel);
+	if (ret)
+		st->mclk_sel = AD4130_MCLK_76_8KHZ;
+
+	if (st->mclk_sel < AD4130_MCLK_76_8KHZ ||
+	    st->mclk_sel > AD4130_MCLK_153_6KHZ_EXT) {
+		dev_err(dev, "Invalid clock %u\n",
+			st->mclk_sel);
+		return -EINVAL;
+	}
+
+	if (st->int_pin_sel == AD4130_INT_PIN_CLK
+	    && st->mclk_sel != AD4130_MCLK_76_8KHZ) {
+		dev_err(dev, "Invalid clock %u for interrupt pin %u\n",
+			st->mclk_sel, st->int_pin_sel);
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -300,6 +325,13 @@ static int ad4130_setup(struct ad4130_state *st)
 	/* Switch to SPI 4-wire mode. */
 	ret = regmap_update_bits(st->regmap, AD4130_REG_ADC_CONTROL,
 				 AD4130_CSB_EN_MASK, AD4130_CSB_EN_MASK);
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(st->regmap, AD4130_REG_ADC_CONTROL,
+				 AD4130_MCLK_SEL_MASK,
+				 FIELD_PREP(AD4130_MCLK_SEL_MASK,
+					    st->mclk_sel));
 	if (ret)
 		return ret;
 
@@ -372,6 +404,10 @@ static int ad4130_probe(struct spi_device *spi)
 	ret = ad4130_soft_reset(st);
 	if (ret)
 		return ret;
+
+	st->mclk = devm_clk_get(&spi->dev, "mclk");
+	if (IS_ERR(st->mclk))
+		return PTR_ERR(st->mclk);
 
 	ret = ad4310_parse_fw(st);
 	if (ret)
