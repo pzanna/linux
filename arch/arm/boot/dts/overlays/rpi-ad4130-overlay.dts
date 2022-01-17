@@ -28,6 +28,8 @@
 				interrupts = <27 IRQ_TYPE_EDGE_FALLING>;
 				interrupt-parent = <&gpio>;
 
+				adi,int-pin-sel = <0>;
+
 				channel@0 {
 					reg = <0>;
 					diff-channels = <0 19>;
