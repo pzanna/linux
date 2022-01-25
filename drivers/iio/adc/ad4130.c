@@ -135,8 +135,6 @@ static const struct iio_chan_spec ad4130_channel_template = {
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 	.scan_type = {
 		.sign = 'u',
-		.realbits = 24,
-		.storagebits = 32,
 		.endianness = IIO_BE,
 	},
 };
