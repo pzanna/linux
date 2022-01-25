@@ -104,6 +104,12 @@ struct ad4130_state {
 	struct regmap			*regmap;
 	struct clk			*mclk;
 
+	/*
+	 * Synchronize access to members of driver state, and ensure atomicity
+	 * of consecutive regmap operations.
+	 */
+	struct mutex			lock;
+
 	struct gpio_chip		gc;
 	unsigned int			gpio_offsets[AD4130_MAX_GPIOS];
 	unsigned int			num_gpios;
@@ -443,6 +449,7 @@ static int ad4130_probe(struct spi_device *spi)
 	st = iio_priv(indio_dev);
 
 	memset(st->reset_buf, 0xff, AD4130_RESET_BUF_SIZE);
+	mutex_init(&st->lock);
 	st->chip_info = info;
 	st->spi = spi;
 
