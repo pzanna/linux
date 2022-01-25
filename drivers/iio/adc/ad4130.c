@@ -272,6 +272,13 @@ static int _ad4130_read_sample(struct ad4130_state *st,
 {
 	int ret;
 
+	reinit_completion(&st->completion);
+
+	ret = wait_for_completion_timeout(&st->completion,
+					  msecs_to_jiffies(1000));
+	if (!ret)
+		return -ETIMEDOUT;
+
 	ret = regmap_read(st->regmap, AD4130_REG_DATA, val);
 	if (ret)
 		return ret;
