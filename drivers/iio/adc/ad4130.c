@@ -232,13 +232,17 @@ static const struct regmap_config ad4130_regmap_config = {
 
 static int ad4130_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 {
-	return 0;
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static void ad4130_gpio_set(struct gpio_chip *gc, unsigned int offset,
 			    int value)
 {
+	struct ad4130_state *st = gpiochip_get_data(gc);
+	unsigned int real_offset = st->gpio_offsets[offset];
+	unsigned int mask = FIELD_PREP(AD4130_GPIO_DATA_MASK, BIT(real_offset));
 
+	regmap_update_bits(st->regmap, AD4130_REG_IO_CONTROL, mask, mask);
 }
 
 static int ad4130_set_channel_enable(struct ad4130_state *st,
@@ -358,6 +362,7 @@ static int ad4310_parse_fw(struct ad4130_state *st)
 
 static int ad4130_setup(struct ad4130_state *st)
 {
+	unsigned int offset;
 	int ret;
 
 	/* Switch to SPI 4-wire mode. */
@@ -391,6 +396,12 @@ static int ad4130_setup(struct ad4130_state *st)
 	ret = ad4130_set_channel_enable(st, 0, false);
 	if (ret)
 		return ret;
+
+	for (offset = 0; offset < st->num_gpios; offset++) {
+		unsigned int real_offset = st->gpio_offsets[offset];
+		return regmap_update_bits(st->regmap, AD4130_REG_IO_CONTROL,
+					  BIT(real_offset), BIT(real_offset));
+	}
 
 	return 0;
 }
