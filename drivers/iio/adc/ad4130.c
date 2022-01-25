@@ -309,7 +309,6 @@ static int ad4310_parse_fw(struct ad4130_state *st)
 {
 	bool disabled_gpios[AD4130_MAX_GPIOS] = {0};
 	struct device *dev = &st->spi->dev;
-	int ret;
 	int i;
 
 	st->int_pin_sel = AD4130_INT_PIN_CLK;
