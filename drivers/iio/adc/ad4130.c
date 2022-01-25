@@ -109,7 +109,6 @@ struct ad4130_state {
 	unsigned int			num_gpios;
 
 	u32			int_pin_sel;
-	bool			dout_int_pin;
 	u32			mclk_sel;
 	bool			standby_out_en;
 
@@ -323,8 +322,8 @@ static int ad4310_parse_fw(struct ad4130_state *st)
 	if (st->int_pin_sel == AD4130_INT_PIN_DOUT ||
 	    (st->int_pin_sel == AD4130_INT_PIN_DOUT_OR_INT &&
 	     !st->chip_info->has_int_pin)) {
-		dev_err(dev, "FIFO functionality disabled\n");
-		st->dout_int_pin = true;
+		dev_err(dev, "Cannot use DOUT as interrupt pin\n");
+		return -EINVAL;
 	}
 
 	if (st->int_pin_sel == AD4130_INT_PIN_P1)
