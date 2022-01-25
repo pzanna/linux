@@ -108,6 +108,7 @@ struct ad4130_state {
 	 * of consecutive regmap operations.
 	 */
 	struct mutex			lock;
+	struct completion		completion;
 
 	struct gpio_chip		gc;
 	unsigned int			gpio_offsets[AD4130_MAX_GPIOS];
@@ -470,6 +471,7 @@ static int ad4130_probe(struct spi_device *spi)
 	st = iio_priv(indio_dev);
 
 	memset(st->reset_buf, 0xff, AD4130_RESET_BUF_SIZE);
+	init_completion(&st->completion);
 	mutex_init(&st->lock);
 	st->chip_info = info;
 	st->spi = spi;
