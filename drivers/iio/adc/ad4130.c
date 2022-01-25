@@ -22,7 +22,6 @@
 #include <linux/spi/spi.h>
 
 #include <linux/iio/iio.h>
-#include <linux/iio/adc/ad_sigma_delta.h>
 #include <linux/iio/sysfs.h>
 
 #define AD4130_8_NAME			"ad4130-8"
