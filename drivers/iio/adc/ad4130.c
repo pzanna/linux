@@ -266,9 +266,22 @@ static irqreturn_t ad4130_irq_handler(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
+static int _ad4130_read_sample(struct ad4130_state *st,
+			       struct iio_chan_spec const *chan,
+			       int *val)
+{
+	int ret;
+
+	ret = regmap_read(st->regmap, AD4130_REG_DATA, val);
+	if (ret)
+		return ret;
+
+	return IIO_VAL_INT;
+}
+
 static int ad4130_read_sample(struct iio_dev *indio_dev,
 			      struct iio_chan_spec const *chan,
-			      int *val)
+			      int *val
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	int ret;
@@ -278,16 +291,12 @@ static int ad4130_read_sample(struct iio_dev *indio_dev,
 		return ret;
 
 	mutex_lock(&st->lock);
-
-	ret = regmap_read(st->regmap, AD4130_REG_DATA, val);
-	if (ret)
-		goto out;
-out:
+	ret = _ad4130_read_sample(st, chan, val);
 	mutex_unlock(&st->lock);
 
 	iio_device_release_direct_mode(indio_dev);
 
-	return ret ?: IIO_VAL_INT;
+	return ret;
 }
 
 static int ad4130_read_raw(struct iio_dev *indio_dev,
