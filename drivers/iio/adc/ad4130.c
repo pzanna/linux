@@ -235,37 +235,10 @@ static int ad4130_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 	return 0;
 }
 
-static int ad4130_gpio_direction_input(struct gpio_chip *gc,
-				       unsigned int offset)
-{
-	return 0;
-}
-
-static int ad4130_gpio_direction_output(struct gpio_chip *gc,
-					unsigned int offset, int value)
-{
-	return 0;
-}
-
-static int ad4130_gpio_get(struct gpio_chip *gc, unsigned int offset)
-{
-	return 0;
-}
-
-static int ad4130_gpio_get_multiple(struct gpio_chip *gc, unsigned long *mask,
-				    unsigned long *bits)
-{
-	return 0;
-}
-
 static void ad4130_gpio_set(struct gpio_chip *gc, unsigned int offset,
 			    int value)
 {
-}
 
-static void ad4130_gpio_set_multiple(struct gpio_chip *gc, unsigned long *mask,
-				     unsigned long *bits)
-{
 }
 
 static int ad4130_set_channel_enable(struct ad4130_state *st,
@@ -497,12 +470,7 @@ static int ad4130_probe(struct spi_device *spi)
 		st->gc.parent = &st->spi->dev;
 		st->gc.can_sleep = true;
 		st->gc.get_direction = ad4130_gpio_get_direction;
-		st->gc.direction_input = ad4130_gpio_direction_input;
-		st->gc.direction_output = ad4130_gpio_direction_output;
-		st->gc.get = ad4130_gpio_get;
-		st->gc.get_multiple = ad4130_gpio_get_multiple;
 		st->gc.set = ad4130_gpio_set;
-		st->gc.set_multiple = ad4130_gpio_set_multiple;
 
 		ret = devm_gpiochip_add_data(&spi->dev, &st->gc, st);
 		if (ret)
