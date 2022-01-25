@@ -258,6 +258,11 @@ static int ad4130_set_channel_enable(struct ad4130_state *st,
 
 static irqreturn_t ad4130_irq_handler(int irq, void *private)
 {
+	struct iio_dev *indio_dev = private;
+	struct ad4130_state *st = iio_priv(indio_dev);
+
+	complete(&st->completion);
+
 	return IRQ_HANDLED;
 }
 
