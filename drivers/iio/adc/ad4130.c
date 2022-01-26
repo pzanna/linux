@@ -361,13 +361,11 @@ static int ad4130_update_scan_mode(struct iio_dev *indio_dev,
 				   const unsigned long *scan_mask)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
-	bool status;
 	int ret;
 	int i;
 
 	for (i = 0; i < indio_dev->num_channels; i++) {
-		status = test_bit(i, scan_mask);
-		ret = ad4130_set_channel_enable(st, i, status);
+		ret = ad4130_set_channel_enable(st, i, test_bit(i, scan_mask));
 		if (ret)
 			return ret;
 	}
