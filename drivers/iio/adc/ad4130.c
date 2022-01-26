@@ -58,12 +58,8 @@
 #define AD4130_REG_CHANNEL_X(x)		(0x09 + (x))
 #define AD4130_CHANNEL_EN_MASK		BIT(23)
 
-#define AD4130_REG_MISC			0x39
-#define AD4130_STBY_OUT_EN_MASK		BIT(8)
-
 #define AD4130_MAX_GPIOS		4
 #define AD4130_P1_INDEX			0
-#define AD4130_P3_INDEX			2
 
 #define AD4130_MAX_CHANNELS		16
 #define AD4130_RESET_CLK_COUNT		64
@@ -82,7 +78,6 @@ static const unsigned int ad4130_reg_size[] = {
 		...
 		AD4130_REG_CHANNEL_X(AD4130_MAX_CHANNELS)
 	] = 3,
-	[AD4130_REG_MISC] = 2,
 };
 
 enum ad4130_id {
@@ -123,7 +118,6 @@ struct ad4130_state {
 
 	u32			int_pin_sel;
 	u32			mclk_sel;
-	bool			standby_out_en;
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
@@ -400,11 +394,6 @@ static int ad4310_parse_fw(struct ad4130_state *st)
 	if (st->int_pin_sel == AD4130_INT_PIN_P1)
 		disabled_gpios[AD4130_P1_INDEX] = true;
 
-	st->standby_out_en = device_property_read_bool(dev, "adi,stby-out-en");
-
-	if (st->standby_out_en)
-		disabled_gpios[AD4130_P3_INDEX] = true;
-
 	st->mclk_sel = AD4130_MCLK_76_8KHZ;
 	device_property_read_u32(dev, "adi,mclk-sel", &st->mclk_sel);
 
@@ -451,13 +440,6 @@ static int ad4130_setup(struct ad4130_state *st)
 				 AD4130_INT_PIN_SEL_MASK,
 				 FIELD_PREP(AD4130_INT_PIN_SEL_MASK,
 					    st->int_pin_sel));
-	if (ret)
-		return ret;
-
-	ret = regmap_update_bits(st->regmap, AD4130_REG_MISC,
-				 AD4130_STBY_OUT_EN_MASK,
-				 st->standby_out_en ? AD4130_STBY_OUT_EN_MASK
-						    : 0);
 	if (ret)
 		return ret;
 
