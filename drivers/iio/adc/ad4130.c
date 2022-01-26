@@ -463,6 +463,7 @@ static int ad4130_setup(struct ad4130_state *st)
 	if (ret)
 		return ret;
 
+	/* Switch unused GPIOs to output mode. */
 	for (offset = 0; offset < st->num_gpios; offset++) {
 		unsigned int real_offset = st->gpio_offsets[offset];
 		return regmap_update_bits(st->regmap, AD4130_REG_IO_CONTROL,
