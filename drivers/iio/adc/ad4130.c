@@ -70,7 +70,6 @@
 static const unsigned int ad4130_reg_size[] = {
 	[AD4130_REG_STATUS] = 1,
 	[AD4130_REG_ADC_CONTROL] = 2,
-	[AD4130_REG_DATA] = 2,
 	[AD4130_REG_IO_CONTROL] = 2,
 	[AD4130_REG_ID] = 1,
 	[
@@ -145,6 +144,11 @@ static int ad4130_get_reg_size(struct ad4130_state *st, unsigned int reg,
 {
 	if (reg >= ARRAY_SIZE(ad4130_reg_size))
 		return -EINVAL;
+
+	if (reg == AD4130_REG_DATA) {
+		*size = st->chip_info->resolution / 8;
+		return 0;
+	}
 
 	*size = ad4130_reg_size[reg];
 
