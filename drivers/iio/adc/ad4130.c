@@ -340,9 +340,9 @@ static int ad4130_reg_access(struct iio_dev *indio_dev, unsigned int reg,
 	struct ad4130_state *st = iio_priv(indio_dev);
 
 	if (readval)
-		return ad4130_reg_read(st, reg, readval);
+		return regmap_read(st->regmap, reg, readval);
 
-	return ad4130_reg_write(st, reg, writeval);
+	return regmap_write(st->regmap, reg, writeval);
 }
 
 static int ad4130_update_scan_mode(struct iio_dev *indio_dev,
