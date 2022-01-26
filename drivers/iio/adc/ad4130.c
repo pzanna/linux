@@ -286,6 +286,10 @@ static int _ad4130_read_sample(struct ad4130_state *st,
 
 	reinit_completion(&st->completion);
 
+	ret = ad4130_set_channel_enable(st, chan->scan_index, true);
+	if (ret)
+		return ret;
+
 	ret = ad4130_set_mode(st, AD4130_MODE_SINGLE);
 	if (ret)
 		return ret;
@@ -300,6 +304,10 @@ static int _ad4130_read_sample(struct ad4130_state *st,
 		return ret;
 
 	ret = ad4130_set_mode(st, AD4130_MODE_IDLE);
+	if (ret)
+		return ret;
+
+	ret = ad4130_set_channel_enable(st, chan->scan_index, false);
 	if (ret)
 		return ret;
 
