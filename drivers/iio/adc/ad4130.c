@@ -40,6 +40,7 @@
 #define AD4130_MCLK_76_8KHZ_OUT		0x1
 #define AD4130_MCLK_76_8KHZ_EXT		0x2
 #define AD4130_MCLK_153_6KHZ_EXT	0x3
+#define AD4130_MODE_MASK		GENMASK(5, 2)
 
 #define AD4130_REG_DATA			0x02
 
@@ -89,6 +90,12 @@ enum ad4130_id {
 	ID_AD4130_8_24_LFCSP,
 	ID_AD4130_8_16_WLCSP,
 	ID_AD4130_8_16_LFCSP,
+};
+
+enum ad4130_mode {
+	AD4130_MODE_CONTINUOUS = 0b0000,
+	AD4130_MODE_SINGLE = 0b0001,
+	AD4130_MODE_IDLE = 0b0100,
 };
 
 struct ad4130_chip_info {
@@ -248,6 +255,13 @@ static void ad4130_gpio_set(struct gpio_chip *gc, unsigned int offset,
 	regmap_update_bits(st->regmap, AD4130_REG_IO_CONTROL, mask, mask);
 }
 
+static int ad4130_set_mode(struct ad4130_state *st, enum ad4130_mode mode)
+{
+	return regmap_update_bits(st->regmap, AD4130_REG_ADC_CONTROL,
+				  AD4130_MODE_MASK,
+				  FIELD_PREP(AD4130_MODE_MASK, mode));
+}
+
 static int ad4130_set_channel_enable(struct ad4130_state *st,
 				     unsigned int channel, bool status)
 {
@@ -274,12 +288,20 @@ static int _ad4130_read_sample(struct ad4130_state *st,
 
 	reinit_completion(&st->completion);
 
+	ret = ad4130_set_mode(st, AD4130_MODE_SINGLE);
+	if (ret)
+		return ret;
+
 	ret = wait_for_completion_timeout(&st->completion,
 					  msecs_to_jiffies(1000));
 	if (!ret)
 		return -ETIMEDOUT;
 
 	ret = regmap_read(st->regmap, AD4130_REG_DATA, val);
+	if (ret)
+		return ret;
+
+	ret = ad4130_set_mode(st, AD4130_MODE_IDLE);
 	if (ret)
 		return ret;
 
@@ -441,6 +463,11 @@ static int ad4130_setup(struct ad4130_state *st)
 
 	/* First channel starts out as enabled, disable it. */
 	ret = ad4130_set_channel_enable(st, 0, false);
+	if (ret)
+		return ret;
+
+	/* ADC starts out in single conversion mode, switch to idle. */
+	ret = ad4130_set_mode(st, AD4130_MODE_IDLE);
 	if (ret)
 		return ret;
 
