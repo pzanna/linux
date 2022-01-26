@@ -288,7 +288,7 @@ static int _ad4130_read_sample(struct ad4130_state *st,
 
 static int ad4130_read_sample(struct iio_dev *indio_dev,
 			      struct iio_chan_spec const *chan,
-			      int *val
+			      int *val)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	int ret;
