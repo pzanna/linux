@@ -59,9 +59,16 @@
 #define AD4130_CHANNEL_EN_MASK		BIT(23)
 
 #define AD4130_MAX_GPIOS		4
-#define AD4130_P1_INDEX			0
-
+#define AD4130_MAX_SETUPS		8
 #define AD4130_MAX_CHANNELS		16
+#define AD4130_MAX_ANALOG_PINS		16
+#define AD4130_MAX_DIFF_INPUTS		30
+
+#define AD4130_AIN_2_P1			0x2
+#define AD4130_AIN_3_P2			0x3
+#define AD4130_AIN_4_P3			0x4
+#define AD4130_AIN_5_P4			0x5
+
 #define AD4130_RESET_CLK_COUNT		64
 #define AD4130_RESET_BUF_SIZE		(AD4130_RESET_CLK_COUNT / 8)
 #define AD4130_SOFT_RESET_SLEEP		2000
@@ -92,10 +99,24 @@ enum ad4130_mode {
 	AD4130_MODE_IDLE = 0b0100,
 };
 
+enum ad4130_pin_function {
+	AD4130_PIN_FN_NONE,
+	AD4130_PIN_FN_DIFF,
+	AD4130_PIN_FN_EXCITATION,
+	AD4130_PIN_FN_GPIO,
+	AD4130_PIN_FN_SPECIAL,
+};
+
 struct ad4130_chip_info {
 	const char	*name;
 	u8		resolution;
 	bool		has_int_pin;
+};
+
+struct ad4130_chan_info {
+	u32		setup;
+	u32		iout[2];
+	unsigned int	num_iout;
 };
 
 struct ad4130_state {
@@ -111,6 +132,9 @@ struct ad4130_state {
 	struct mutex			lock;
 	struct completion		completion;
 
+	struct iio_chan_spec		chans[AD4130_MAX_CHANNELS];
+	struct ad4130_chan_info		chans_info[AD4130_MAX_CHANNELS];
+	enum ad4130_pin_function	pins_fn[AD4130_MAX_ANALOG_PINS];
 	struct gpio_chip		gc;
 	unsigned int			gpio_offsets[AD4130_MAX_GPIOS];
 	unsigned int			num_gpios;
@@ -379,10 +403,186 @@ static const struct iio_info ad4130_info = {
 	.debugfs_reg_access = ad4130_reg_access,
 };
 
-static int ad4310_parse_fw(struct ad4130_state *st)
+static int ad4130_validate_diff_channel(struct ad4130_state *st, u32 pin)
 {
-	bool disabled_gpios[AD4130_MAX_GPIOS] = {0};
 	struct device *dev = &st->spi->dev;
+	enum ad4130_pin_function pin_fn;
+
+	if (pin >= AD4130_MAX_DIFF_INPUTS) {
+		dev_err(dev, "Invalid diffreential channel %u\n", pin);
+		return -EINVAL;
+	}
+
+	if (pin >= AD4130_MAX_ANALOG_PINS)
+		return 0;
+
+	pin_fn = st->pins_fn[pin];
+
+	if (pin_fn != AD4130_PIN_FN_NONE &&
+	    pin_fn != AD4130_PIN_FN_DIFF) {
+		dev_err(dev, "Pin %u already used with fn %u\n",
+			pin, pin_fn);
+		return -EINVAL;
+	}
+
+	st->pins_fn[pin] = AD4130_PIN_FN_DIFF;
+
+	return 0;
+}
+
+static int ad4130_validate_diff_channels(struct ad4130_state *st,
+					 u32 *pins, unsigned int len)
+{
+	unsigned int i;
+	int ret = 0;
+
+	for (i = 0; i < len; i++) {
+		ret = ad4130_validate_diff_channel(st, pins[i]);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+static int ad4130_validate_excitation_pin(struct ad4130_state *st, u32 pin)
+{
+	struct device *dev = &st->spi->dev;
+	enum ad4130_pin_function pin_fn;
+
+	if (pin >= AD4130_MAX_ANALOG_PINS) {
+		dev_err(dev, "Invalid excitation pin %u\n", pin);
+		return -EINVAL;
+	}
+
+	pin_fn = st->pins_fn[pin];
+
+	if (pin_fn != AD4130_PIN_FN_NONE) {
+		dev_err(dev, "Pin %u already used with fn %u\n",
+			pin, pin_fn);
+		return -EINVAL;
+	}
+
+	st->pins_fn[pin] = AD4130_PIN_FN_EXCITATION;
+
+	return 0;
+}
+
+static int ad4130_read_excitation_pins(struct ad4130_state *st,
+				       struct fwnode_handle *child,
+				       struct ad4130_chan_info *chan_info)
+{
+	struct device *dev = &st->spi->dev;
+	unsigned int i;
+	int ret;
+
+	ret = fwnode_property_count_u32(child, "adi,excitation-pins");
+	if (ret > 2) {
+		dev_err(dev, "Too many excitation channels %d\n", ret);
+		return -EINVAL;
+	}
+
+	if (!ret)
+		return 0;
+
+	chan_info->num_iout = ret;
+
+	ret = fwnode_property_read_u32_array(child, "adi,excitation-pins",
+					     chan_info->iout,
+					     chan_info->num_iout);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < chan_info->num_iout; i++) {
+		ret = ad4130_validate_excitation_pin(st, chan_info->iout[i]);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+static int ad4130_parse_fw_channel(struct iio_dev *indio_dev,
+				   struct fwnode_handle *child)
+{
+	struct ad4130_state *st = iio_priv(indio_dev);
+	unsigned int index = indio_dev->num_channels++;
+	struct iio_chan_spec *chan = &st->chans[index];
+	struct device *dev = &st->spi->dev;
+	struct ad4130_chan_info *chan_info;
+	u32 pins[2], reg;
+	int ret;
+
+	*chan = ad4130_channel_template;
+	chan->scan_type.realbits = st->chip_info->resolution;
+	chan->scan_type.storagebits = st->chip_info->resolution;
+
+	ret = fwnode_property_read_u32(child, "reg", &reg);
+	if (ret) {
+		dev_err(dev, "Missing channel index\n");
+		return ret;
+	}
+
+	if (reg >= AD4130_MAX_CHANNELS) {
+		dev_err(dev, "Channel index %u invalid\n", reg);
+		return -EINVAL;
+	}
+
+	chan_info = &st->chans_info[reg];
+	chan->scan_index = reg;
+
+	ret = fwnode_property_read_u32_array(child, "adi,diff-channels", pins,
+					     ARRAY_SIZE(pins));
+	if (ret)
+		return ret;
+
+	ret = ad4130_validate_diff_channels(st, pins, ARRAY_SIZE(pins));
+	if (ret)
+		return ret;
+
+	chan->channel = pins[0];
+	chan->channel2 = pins[1];
+
+	chan_info->setup = 0;
+	fwnode_property_read_u32(child, "adi,setup", &chan_info->setup);
+	if (chan_info->setup >= AD4130_MAX_SETUPS) {
+		dev_err(dev, "Invalid config setup %u\n", chan_info->setup);
+		return -EINVAL;
+	}
+
+	ret = ad4130_read_excitation_pins(st, child, chan_info);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int ad4130_parse_fw_channels(struct iio_dev *indio_dev)
+{
+	struct ad4130_state *st = iio_priv(indio_dev);
+	struct device *dev = &st->spi->dev;
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	struct fwnode_handle *child;
+	int ret;
+
+	indio_dev->channels = st->chans;
+
+	fwnode_for_each_available_child_node(fwnode, child) {
+		ret = ad4130_parse_fw_channel(indio_dev, child);
+		if (ret)
+			break;
+	}
+
+	fwnode_handle_put(child);
+
+	return ret;
+}
+
+static int ad4310_parse_fw(struct iio_dev *indio_dev)
+{
+	struct ad4130_state *st = iio_priv(indio_dev);
+	struct device *dev = &st->spi->dev;
+	int ret;
 	int i;
 
 	st->int_pin_sel = AD4130_INT_PIN_CLK;
@@ -402,7 +602,7 @@ static int ad4310_parse_fw(struct ad4130_state *st)
 	}
 
 	if (st->int_pin_sel == AD4130_INT_PIN_P1)
-		disabled_gpios[AD4130_P1_INDEX] = true;
+		st->pins_fn[AD4130_AIN_2_P1] = AD4130_PIN_FN_SPECIAL;
 
 	st->mclk_sel = AD4130_MCLK_76_8KHZ;
 	device_property_read_u32(dev, "adi,mclk-sel", &st->mclk_sel);
@@ -421,9 +621,14 @@ static int ad4310_parse_fw(struct ad4130_state *st)
 		return -EINVAL;
 	}
 
-	for (i = 0; i < AD4130_MAX_GPIOS; i++)
-		if (!disabled_gpios[i])
+	ret = ad4130_parse_fw_channels(indio_dev);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < AD4130_MAX_GPIOS; i++) {
+		if (st->pins_fn[i + AD4130_AIN_2_P1] == AD4130_PIN_FN_NONE)
 			st->gpio_offsets[st->num_gpios++] = i;
+	}
 
 	return 0;
 }
@@ -534,7 +739,7 @@ static int ad4130_probe(struct spi_device *spi)
 	if (IS_ERR(st->mclk))
 		return PTR_ERR(st->mclk);
 
-	ret = ad4310_parse_fw(st);
+	ret = ad4310_parse_fw(indio_dev);
 	if (ret)
 		return ret;
 
