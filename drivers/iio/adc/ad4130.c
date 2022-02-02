@@ -633,7 +633,7 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 static int ad4130_setup(struct iio_dev *indio_dev)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
-	unsigned int offset;
+	unsigned int i;
 	int ret;
 
 	/* Switch to SPI 4-wire mode. */
@@ -667,8 +667,8 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 		return ret;
 
 	/* Switch unused GPIOs to output mode. */
-	for (offset = 0; offset < st->num_gpios; offset++) {
-		unsigned int real_offset = st->gpio_offsets[offset];
+	for (i = 0; i < st->num_gpios; i++) {
+		unsigned int real_offset = st->gpio_offsets[i];
 		return regmap_update_bits(st->regmap, AD4130_REG_IO_CONTROL,
 					  BIT(real_offset), BIT(real_offset));
 	}
