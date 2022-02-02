@@ -116,7 +116,6 @@ struct ad4130_chip_info {
 struct ad4130_chan_info {
 	u32		setup;
 	u32		iout[2];
-	unsigned int	num_iout;
 };
 
 struct ad4130_state {
@@ -473,27 +472,25 @@ static int ad4130_read_excitation_pins(struct ad4130_state *st,
 				       struct ad4130_chan_info *chan_info)
 {
 	struct device *dev = &st->spi->dev;
+	unsigned int num_iout;
 	unsigned int i;
 	int ret;
 
-	ret = fwnode_property_count_u32(child, "adi,excitation-pins");
-	if (ret > 2) {
-		dev_err(dev, "Too many excitation channels %d\n", ret);
+	num_iout = fwnode_property_count_u32(child, "adi,excitation-pins");
+	if (num_iout > 2) {
+		dev_err(dev, "Too many excitation channels %d\n", num_iout);
 		return -EINVAL;
 	}
 
-	if (!ret)
+	if (!num_iout)
 		return 0;
 
-	chan_info->num_iout = ret;
-
 	ret = fwnode_property_read_u32_array(child, "adi,excitation-pins",
-					     chan_info->iout,
-					     chan_info->num_iout);
+					     chan_info->iout, num_iout);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < chan_info->num_iout; i++) {
+	for (i = 0; i < num_iout; i++) {
 		ret = ad4130_validate_excitation_pin(st, chan_info->iout[i]);
 		if (ret)
 			break;
