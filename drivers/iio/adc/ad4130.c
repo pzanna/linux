@@ -633,8 +633,9 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static int ad4130_setup(struct ad4130_state *st)
+static int ad4130_setup(struct iio_dev *indio_dev)
 {
+	struct ad4130_state *st = iio_priv(indio_dev);
 	unsigned int offset;
 	int ret;
 
@@ -743,7 +744,7 @@ static int ad4130_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = ad4130_setup(st);
+	ret = ad4130_setup(indio_dev);
 	if (ret)
 		return ret;
 
