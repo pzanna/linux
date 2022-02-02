@@ -57,6 +57,11 @@
 
 #define AD4130_REG_CHANNEL_X(x)		(0x09 + (x))
 #define AD4130_CHANNEL_EN_MASK		BIT(23)
+#define AD4130_SETUP_MASK		GENMASK(22, 20)
+#define AD4130_AINP_MASK		GENMASK(17, 13)
+#define AD4130_AINM_MASK		GENMASK(12, 8)
+#define AD4130_IOUT1_MASK		GENMASK(7, 4)
+#define AD4130_IOUT2_MASK		GENMASK(3, 0)
 
 #define AD4130_MAX_GPIOS		4
 #define AD4130_MAX_SETUPS		8
@@ -656,11 +661,6 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 
-	/* First channel starts out as enabled, disable it. */
-	ret = ad4130_set_channel_enable(st, 0, false);
-	if (ret)
-		return ret;
-
 	/* ADC starts out in single conversion mode, switch to idle. */
 	ret = ad4130_set_mode(st, AD4130_MODE_IDLE);
 	if (ret)
@@ -671,6 +671,25 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 		unsigned int real_offset = st->gpio_offsets[i];
 		return regmap_update_bits(st->regmap, AD4130_REG_IO_CONTROL,
 					  BIT(real_offset), BIT(real_offset));
+	}
+
+	/* Setup channels. */
+	for (i = 0; i < indio_dev->num_channels; i++) {
+		struct iio_chan_spec *chan = &st->chans[i];
+		unsigned int channel = chan->scan_index;
+		struct ad4130_chan_info *chan_info = &st->chans_info[channel];
+		unsigned int val;
+
+		val = FIELD_PREP(AD4130_SETUP_MASK, chan_info->setup) |
+		      FIELD_PREP(AD4130_AINP_MASK, chan->channel) |
+		      FIELD_PREP(AD4130_AINM_MASK, chan->channel2) |
+		      FIELD_PREP(AD4130_IOUT1_MASK, chan_info->iout[0]) |
+		      FIELD_PREP(AD4130_IOUT2_MASK, chan_info->iout[1]);
+
+		ret = regmap_write(st->regmap, AD4130_REG_CHANNEL_X(channel),
+				   val);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
