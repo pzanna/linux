@@ -558,7 +558,7 @@ static int ad4130_parse_fw_channel(struct iio_dev *indio_dev,
 	return 0;
 }
 
-static int ad4130_parse_fw_channels(struct iio_dev *indio_dev)
+static int ad4130_parse_fw_children(struct iio_dev *indio_dev)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	struct device *dev = &st->spi->dev;
@@ -569,7 +569,15 @@ static int ad4130_parse_fw_channels(struct iio_dev *indio_dev)
 	indio_dev->channels = st->chans;
 
 	fwnode_for_each_available_child_node(fwnode, child) {
-		ret = ad4130_parse_fw_channel(indio_dev, child);
+		const char *name = fwnode_get_name(child);
+
+		if (!strcmp(name, "channel")) {
+			ret = ad4130_parse_fw_channel(indio_dev, child);
+		} else {
+			dev_err(dev, "Invalid child name %s\n", name);
+			ret = -EINVAL;
+		}
+
 		if (ret)
 			break;
 	}
@@ -621,7 +629,7 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 		return -EINVAL;
 	}
 
-	ret = ad4130_parse_fw_channels(indio_dev);
+	ret = ad4130_parse_fw_children(indio_dev);
 	if (ret)
 		return ret;
 
