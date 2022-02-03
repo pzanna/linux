@@ -565,8 +565,8 @@ static int ad4130_parse_fw_channel(struct iio_dev *indio_dev,
 }
 
 static int ad4130_validate_excitation_current(struct ad4130_state *st,
-					      u32 current_na,
-					      unsigned int *iout_val)
+					      unsigned int *iout_val,
+					      u32 current_na)
 {
 	struct device *dev = &st->spi->dev;
 	int i;
@@ -601,15 +601,15 @@ static int ad4130_parse_fw_setup(struct iio_dev *indio_dev,
 
 	fwnode_property_read_u32(child, "adi,excitation-current-0-nanoamps",
 				 &current_na);
-	ret = ad4130_validate_excitation_current(st, current_na,
-						 &setup_info->iout0_val);
+	ret = ad4130_validate_excitation_current(st, &setup_info->iout0_val,
+						 current_na);
 	if (ret)
 		return ret;
 
 	fwnode_property_read_u32(child, "adi,excitation-current-1-nanoamps",
 				 &current_na);
-	ret = ad4130_validate_excitation_current(st, current_na,
-						 &setup_info->iout1_val);
+	ret = ad4130_validate_excitation_current(st, &setup_info->iout1_val,
+						 current_na);
 	if (ret)
 		return ret;
 
