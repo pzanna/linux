@@ -106,9 +106,6 @@ enum ad4130_mode {
 
 enum ad4130_pin_function {
 	AD4130_PIN_FN_NONE,
-	AD4130_PIN_FN_DIFF,
-	AD4130_PIN_FN_EXCITATION,
-	AD4130_PIN_FN_GPIO,
 	AD4130_PIN_FN_SPECIAL,
 };
 
@@ -422,14 +419,11 @@ static int ad4130_validate_diff_channel(struct ad4130_state *st, u32 pin)
 
 	pin_fn = st->pins_fn[pin];
 
-	if (pin_fn != AD4130_PIN_FN_NONE &&
-	    pin_fn != AD4130_PIN_FN_DIFF) {
+	if (pin_fn == AD4130_PIN_FN_SPECIAL) {
 		dev_err(dev, "Pin %u already used with fn %u\n",
 			pin, pin_fn);
 		return -EINVAL;
 	}
-
-	st->pins_fn[pin] = AD4130_PIN_FN_DIFF;
 
 	return 0;
 }
@@ -461,13 +455,11 @@ static int ad4130_validate_excitation_pin(struct ad4130_state *st, u32 pin)
 
 	pin_fn = st->pins_fn[pin];
 
-	if (pin_fn != AD4130_PIN_FN_NONE) {
+	if (pin_fn == AD4130_PIN_FN_SPECIAL) {
 		dev_err(dev, "Pin %u already used with fn %u\n",
 			pin, pin_fn);
 		return -EINVAL;
 	}
-
-	st->pins_fn[pin] = AD4130_PIN_FN_EXCITATION;
 
 	return 0;
 }
