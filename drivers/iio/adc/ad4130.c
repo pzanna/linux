@@ -164,9 +164,9 @@ struct ad4130_setup_info {
 	unsigned int	iout0_val;
 	unsigned int	iout1_val;
 	unsigned int	burnout;
-	bool		buffered_positive;
-	bool		buffered_negative;
-	u32		reference_select;
+	bool		ref_bufp;
+	bool		ref_bufm;
+	u32		ref_sel;
 };
 
 struct ad4130_state {
@@ -650,17 +650,17 @@ static int ad4130_parse_fw_setup(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
-	setup_info->buffered_positive =
+	setup_info->ref_bufp =
 		fwnode_property_read_bool(child, "adi,buffered-positive");
 
-	setup_info->buffered_negative =
+	setup_info->ref_bufm =
 		fwnode_property_read_bool(child, "adi,buffered-negative");
 
 	fwnode_property_read_u32(child, "adi,reference-select",
-				 &setup_info->reference_select);
-	if (setup_info->reference_select > AD4130_REF_AVDD_AVSS) {
+				 &setup_info->ref_sel);
+	if (setup_info->ref_sel > AD4130_REF_AVDD_AVSS) {
 		dev_err(dev, "Invalid reference selected %u\n",
-			setup_info->reference_select);
+			setup_info->ref_sel);
 		return -EINVAL;
 	}
 
