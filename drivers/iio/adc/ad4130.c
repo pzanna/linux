@@ -649,6 +649,12 @@ static int ad4130_parse_fw_setup(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
+	setup_info->buffered_positive =
+		fwnode_property_read_bool(child, "adi,buffered-positive");
+
+	setup_info->buffered_negative =
+		fwnode_property_read_bool(child, "adi,buffered-negative");
+
 	return 0;
 }
 
