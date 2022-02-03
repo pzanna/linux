@@ -559,11 +559,10 @@ static int ad4130_parse_fw_channel(struct iio_dev *indio_dev,
 	return 0;
 }
 
-static int ad4130_parse_fw_channels(struct iio_dev *indio_dev)
+static int ad4130_parse_fw_channels(struct iio_dev *indio_dev,
+				    struct fwnode_handle *fwnode)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
-	struct device *dev = &st->spi->dev;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	struct fwnode_handle *child;
 	int ret;
 
@@ -584,6 +583,7 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	struct device *dev = &st->spi->dev;
+	struct fwnode_handle *fwnode;
 	int ret;
 	int i;
 
@@ -622,7 +622,13 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 		return -EINVAL;
 	}
 
-	ret = ad4130_parse_fw_channels(indio_dev);
+	fwnode = device_get_named_child_node(dev, "adi,channels");
+	if (!fwnode) {
+		dev_err(dev, "Missing adi,channels child\n");
+		return -EINVAL;
+	}
+
+	ret = ad4130_parse_fw_channels(indio_dev, fwnode);
 	if (ret)
 		return ret;
 
