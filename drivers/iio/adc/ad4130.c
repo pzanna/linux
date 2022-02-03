@@ -579,7 +579,7 @@ static int ad4130_parse_fw_children(struct iio_dev *indio_dev)
 
 		if (!strcmp(name, "channel")) {
 			ret = ad4130_parse_fw_channel(indio_dev, child);
-		} else if (strcmp(name, "config")) {
+		} else if (strcmp(name, "setup")) {
 			ret = ad4130_parse_fw_setup(indio_dev, child);
 		} else {
 			dev_err(dev, "Invalid child name %s\n", name);
