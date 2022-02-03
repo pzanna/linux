@@ -82,6 +82,7 @@
 #define AD4130_REF_BUFP			BIT(7)
 #define AD4130_REF_BUFM			BIT(6)
 #define AD4130_REF_SEL			GENMASK(5, 4)
+#define AD4130_REF_AVDD_AVSS		0x3
 
 #define AD4130_MAX_GPIOS		4
 #define AD4130_MAX_SETUPS		8
@@ -654,6 +655,14 @@ static int ad4130_parse_fw_setup(struct iio_dev *indio_dev,
 
 	setup_info->buffered_negative =
 		fwnode_property_read_bool(child, "adi,buffered-negative");
+
+	fwnode_property_read_u32(child, "adi,reference-select",
+				 &setup_info->reference_select);
+	if (setup_info->reference_select > AD4130_REF_AVDD_AVSS) {
+		dev_err(dev, "Invalid reference selected %u\n",
+			setup_info->reference_select);
+		return -EINVAL;
+	}
 
 	return 0;
 }
