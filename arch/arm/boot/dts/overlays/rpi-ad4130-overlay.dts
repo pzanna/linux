@@ -30,7 +30,7 @@
 
 				adi,int-pin-sel = <0>;
 
-				config@0 {
+				setup@0 {
 					ret = <0>;
 				};
 
