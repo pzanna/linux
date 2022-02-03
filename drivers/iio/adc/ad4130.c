@@ -611,8 +611,7 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 
 	if (st->mclk_sel < AD4130_MCLK_76_8KHZ ||
 	    st->mclk_sel > AD4130_MCLK_153_6KHZ_EXT) {
-		dev_err(dev, "Invalid clock %u\n",
-			st->mclk_sel);
+		dev_err(dev, "Invalid clock %u\n", st->mclk_sel);
 		return -EINVAL;
 	}
 
