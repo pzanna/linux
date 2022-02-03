@@ -63,6 +63,22 @@
 #define AD4130_IOUT1_MASK		GENMASK(7, 4)
 #define AD4130_IOUT2_MASK		GENMASK(3, 0)
 
+#define AD4130_REG_CONFIG_X(x)		(0x19 + (x))
+#define AD4130_IOUT1_VAL_MASK		GENMASK(15, 13)
+#define AD4130_IOUT2_VAL_MASK		GENMASK(12, 10)
+#define AD4130_IOUT_OFF			0x0
+#define AD4130_IOUT_10000NA		0x1
+#define AD4130_IOUT_20000NA		0x2
+#define AD4130_IOUT_50000NA		0x3
+#define AD4130_IOUT_100000NA		0x4
+#define AD4130_IOUT_150000NA		0x5
+#define AD4130_IOUT_200000NA		0x6
+#define AD4130_IOUT_100NA		0x7
+#define AD4130_BURNOUT_MASK		GENMASK(9, 8)
+#define AD4130_REF_BUFP			BIT(7)
+#define AD4130_REF_BUFM			BIT(6)
+#define AD4130_REF_SEL			GENMASK(5, 4)
+
 #define AD4130_MAX_GPIOS		4
 #define AD4130_MAX_SETUPS		8
 #define AD4130_MAX_CHANNELS		16
@@ -89,6 +105,17 @@ static const unsigned int ad4130_reg_size[] = {
 		...
 		AD4130_REG_CHANNEL_X(AD4130_MAX_CHANNELS)
 	] = 3,
+};
+
+static const unsigned int ad4130_iout_current_na_tbl[] = {
+	[AD4130_IOUT_OFF] = 0,
+	[AD4130_IOUT_100NA] = 100,
+	[AD4130_IOUT_10000NA] = 10000,
+	[AD4130_IOUT_20000NA] = 20000,
+	[AD4130_IOUT_50000NA] = 50000,
+	[AD4130_IOUT_100000NA] = 100000,
+	[AD4130_IOUT_150000NA] = 150000,
+	[AD4130_IOUT_200000NA] = 200000,
 };
 
 enum ad4130_id {
@@ -121,6 +148,15 @@ struct ad4130_chan_info {
 	u32		iout1;
 };
 
+struct ad4130_setup_info {
+	unsigned int	iout0_val;
+	unsigned int	iout1_val;
+	unsigned int	burnout;
+	bool		buffered_positive;
+	bool		buffered_negative;
+	u32		reference_select;
+};
+
 struct ad4130_state {
 	const struct ad4130_chip_info	*chip_info;
 	struct spi_device		*spi;
@@ -136,6 +172,7 @@ struct ad4130_state {
 
 	struct iio_chan_spec		chans[AD4130_MAX_CHANNELS];
 	struct ad4130_chan_info		chans_info[AD4130_MAX_CHANNELS];
+	struct ad4130_setup_info	setups_info[AD4130_MAX_SETUPS];
 	enum ad4130_pin_function	pins_fn[AD4130_MAX_ANALOG_PINS];
 	struct gpio_chip		gc;
 	unsigned int			gpio_offsets[AD4130_MAX_GPIOS];
@@ -527,9 +564,55 @@ static int ad4130_parse_fw_channel(struct iio_dev *indio_dev,
 	return 0;
 }
 
+static int ad4130_validate_excitation_current(struct ad4130_state *st,
+					      u32 current_na,
+					      unsigned int *iout_val)
+{
+	struct device *dev = &st->spi->dev;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ad4130_iout_current_na_tbl); i++)
+		if (ad4130_iout_current_na_tbl[i] == current_na) {
+			*iout_val = i;
+			return 0;
+		}
+
+	dev_err(dev, "Invalid excitation current %unA\n", current_na);
+
+	return -EINVAL;
+}
+
 static int ad4130_parse_fw_setup(struct iio_dev *indio_dev,
 				 struct fwnode_handle *child)
 {
+	struct ad4130_state *st = iio_priv(indio_dev);
+	struct ad4130_setup_info *setup_info;
+	struct device *dev = &st->spi->dev;
+	u32 reg, current_na;
+	int ret;
+
+	ret = fwnode_property_read_u32(child, "reg", &reg);
+	if (ret) {
+		dev_err(dev, "Missing setup index\n");
+		return ret;
+	}
+
+	setup_info = &st->setups_info[reg];
+
+	fwnode_property_read_u32(child, "adi,excitation-current-0-nanoamps",
+				 &current_na);
+	ret = ad4130_validate_excitation_current(st, current_na,
+						 &setup_info->iout0_val);
+	if (ret)
+		return ret;
+
+	fwnode_property_read_u32(child, "adi,excitation-current-1-nanoamps",
+				 &current_na);
+	ret = ad4130_validate_excitation_current(st, current_na,
+						 &setup_info->iout1_val);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
