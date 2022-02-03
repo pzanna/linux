@@ -30,6 +30,10 @@
 
 				adi,int-pin-sel = <0>;
 
+				config@0 {
+					ret = <0>;
+				};
+
 				channel@0 {
 					reg = <0>;
 					diff-channels = <0 19>;
