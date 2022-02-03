@@ -75,6 +75,10 @@
 #define AD4130_IOUT_200000NA		0x6
 #define AD4130_IOUT_100NA		0x7
 #define AD4130_BURNOUT_MASK		GENMASK(9, 8)
+#define AD4130_BURNOUT_OFF		0x0
+#define AD4130_BURNOUT_500NA		0x1
+#define AD4130_BURNOUT_2000NA		0x2
+#define AD4130_BURNOUT_4000NA		0x3
 #define AD4130_REF_BUFP			BIT(7)
 #define AD4130_REF_BUFM			BIT(6)
 #define AD4130_REF_SEL			GENMASK(5, 4)
@@ -116,6 +120,13 @@ static const unsigned int ad4130_iout_current_na_tbl[] = {
 	[AD4130_IOUT_100000NA] = 100000,
 	[AD4130_IOUT_150000NA] = 150000,
 	[AD4130_IOUT_200000NA] = 200000,
+};
+
+static const unsigned int ad4130_burnout_current_na_tbl[] = {
+	[AD4130_BURNOUT_OFF] = 0,
+	[AD4130_BURNOUT_500NA] = 500,
+	[AD4130_BURNOUT_2000NA] = 2000,
+	[AD4130_BURNOUT_4000NA] = 4000,
 };
 
 enum ad4130_id {
@@ -582,6 +593,24 @@ static int ad4130_validate_excitation_current(struct ad4130_state *st,
 	return -EINVAL;
 }
 
+static int ad4130_validate_burnout_current(struct ad4130_state *st,
+					   unsigned int *burnout,
+					   u32 current_na)
+{
+	struct device *dev = &st->spi->dev;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ad4130_burnout_current_na_tbl); i++)
+		if (ad4130_burnout_current_na_tbl[i] == current_na) {
+			*burnout = i;
+			return 0;
+		}
+
+	dev_err(dev, "Invalid excitation current %unA\n", current_na);
+
+	return -EINVAL;
+}
+
 static int ad4130_parse_fw_setup(struct iio_dev *indio_dev,
 				 struct fwnode_handle *child)
 {
@@ -610,6 +639,13 @@ static int ad4130_parse_fw_setup(struct iio_dev *indio_dev,
 				 &current_na);
 	ret = ad4130_validate_excitation_current(st, &setup_info->iout1_val,
 						 current_na);
+	if (ret)
+		return ret;
+
+	fwnode_property_read_u32(child, "adi,burnout-current-nanoamps",
+				 &current_na);
+	ret = ad4130_validate_burnout_current(st, &setup_info->burnout,
+					      current_na);
 	if (ret)
 		return ret;
 
