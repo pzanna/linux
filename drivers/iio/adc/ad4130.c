@@ -545,7 +545,6 @@ static int ad4130_parse_fw_channel(struct iio_dev *indio_dev,
 	chan->channel = pins[0];
 	chan->channel2 = pins[1];
 
-	chan_info->setup = 0;
 	fwnode_property_read_u32(child, "adi,setup", &chan_info->setup);
 	if (chan_info->setup >= AD4130_MAX_SETUPS) {
 		dev_err(dev, "Invalid config setup %u\n", chan_info->setup);
