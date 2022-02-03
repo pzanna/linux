@@ -809,6 +809,22 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 			return ret;
 	}
 
+	for (i = 0; i < AD4130_MAX_SETUPS; i++) {
+		struct ad4130_setup_info *setup_info = &st->setups_info[i];
+		unsigned int val;
+
+		val = FIELD_PREP(AD4130_IOUT1_VAL_MASK, setup_info->iout0_val) |
+		      FIELD_PREP(AD4130_IOUT1_VAL_MASK, setup_info->iout1_val) |
+		      FIELD_PREP(AD4130_BURNOUT_MASK, setup_info->burnout) |
+		      FIELD_PREP(AD4130_REF_BUFP, setup_info->ref_bufp) |
+		      FIELD_PREP(AD4130_REF_BUFM, setup_info->ref_bufm) |
+		      FIELD_PREP(AD4130_REF_SEL, setup_info->ref_sel);
+
+		ret = regmap_write(st->regmap, AD4130_REG_CONFIG_X(i), val);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
