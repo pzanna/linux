@@ -117,7 +117,8 @@ struct ad4130_chip_info {
 
 struct ad4130_chan_info {
 	u32		setup;
-	u32		iout[2];
+	u32		iout0;
+	u32		iout1;
 };
 
 struct ad4130_state {
@@ -464,38 +465,6 @@ static int ad4130_validate_excitation_pin(struct ad4130_state *st, u32 pin)
 	return 0;
 }
 
-static int ad4130_read_excitation_pins(struct ad4130_state *st,
-				       struct fwnode_handle *child,
-				       struct ad4130_chan_info *chan_info)
-{
-	struct device *dev = &st->spi->dev;
-	unsigned int num_iout;
-	unsigned int i;
-	int ret;
-
-	num_iout = fwnode_property_count_u32(child, "adi,excitation-pins");
-	if (num_iout > 2) {
-		dev_err(dev, "Too many excitation channels %d\n", num_iout);
-		return -EINVAL;
-	}
-
-	if (!num_iout)
-		return 0;
-
-	ret = fwnode_property_read_u32_array(child, "adi,excitation-pins",
-					     chan_info->iout, num_iout);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < num_iout; i++) {
-		ret = ad4130_validate_excitation_pin(st, chan_info->iout[i]);
-		if (ret)
-			break;
-	}
-
-	return ret;
-}
-
 static int ad4130_parse_fw_channel(struct iio_dev *indio_dev,
 				   struct fwnode_handle *child)
 {
@@ -543,7 +512,15 @@ static int ad4130_parse_fw_channel(struct iio_dev *indio_dev,
 		return -EINVAL;
 	}
 
-	ret = ad4130_read_excitation_pins(st, child, chan_info);
+	fwnode_property_read_u32(child, "adi,excitation-pin-0",
+				 &chan_info->iout0);
+	ret = ad4130_validate_excitation_pin(st, chan_info->iout0);
+	if (ret)
+		return ret;
+
+	fwnode_property_read_u32(child, "adi,excitation-pin-1",
+				 &chan_info->iout1);
+	ret = ad4130_validate_excitation_pin(st, chan_info->iout1);
 	if (ret)
 		return ret;
 
@@ -689,8 +666,8 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 		val = FIELD_PREP(AD4130_SETUP_MASK, chan_info->setup) |
 		      FIELD_PREP(AD4130_AINP_MASK, chan->channel) |
 		      FIELD_PREP(AD4130_AINM_MASK, chan->channel2) |
-		      FIELD_PREP(AD4130_IOUT1_MASK, chan_info->iout[0]) |
-		      FIELD_PREP(AD4130_IOUT2_MASK, chan_info->iout[1]);
+		      FIELD_PREP(AD4130_IOUT1_MASK, chan_info->iout0) |
+		      FIELD_PREP(AD4130_IOUT2_MASK, chan_info->iout1);
 
 		ret = regmap_write(st->regmap, AD4130_REG_CHANNEL_X(channel),
 				   val);
