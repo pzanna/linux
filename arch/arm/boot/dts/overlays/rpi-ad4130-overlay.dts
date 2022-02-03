@@ -30,52 +30,46 @@
 
 				adi,int-pin-sel = <0>;
 
-				channel@0 {
-					reg = <0>;
-					diff-channels = <0 19>;
-					adi,reference-select = <0>;
-				};
+				adi,channels {
+					channel@0 {
+						reg = <0>;
+						diff-channels = <0 19>;
+					};
 
-				channel@1 {
-					reg = <1>;
-					diff-channels = <1 19>;
-					adi,reference-select = <0>;
-				};
+					channel@1 {
+						reg = <1>;
+						diff-channels = <1 19>;
+					};
 
-				channel@2 {
-					reg = <2>;
-					diff-channels = <2 19>;
-					adi,reference-select = <0>;
-				};
+					channel@2 {
+						reg = <2>;
+						diff-channels = <2 19>;
+					};
 
-				channel@3 {
-					reg = <3>;
-					diff-channels = <3 19>;
-					adi,reference-select = <0>;
-				};
+					channel@3 {
+						reg = <3>;
+						diff-channels = <3 19>;
+					};
 
-				channel@4 {
-					reg = <4>;
-					diff-channels = <4 19>;
-					adi,reference-select = <0>;
-				};
+					channel@4 {
+						reg = <4>;
+						diff-channels = <4 19>;
+					};
 
-				channel@5 {
-					reg = <5>;
-					diff-channels = <5 19>;
-					adi,reference-select = <0>;
-				};
+					channel@5 {
+						reg = <5>;
+						diff-channels = <5 19>;
+					};
 
-				channel@6 {
-					reg = <6>;
-					diff-channels = <6 19>;
-					adi,reference-select = <0>;
-				};
+					channel@6 {
+						reg = <6>;
+						diff-channels = <6 19>;
+					};
 
-				channel@7 {
-					reg = <7>;
-					diff-channels = <7 19>;
-					adi,reference-select = <0>;
+					channel@7 {
+						reg = <7>;
+						diff-channels = <7 19>;
+					};
 				};
 			};
 		};
