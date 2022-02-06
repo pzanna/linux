@@ -1387,14 +1387,14 @@ static const struct iio_info adxl367_info = {
 
 static const struct iio_event_spec adxl367_events[] = {
 	{
-		.type = IIO_EV_TYPE_THRESH,
+		.type = IIO_EV_TYPE_MAG_REFERENCED,
 		.dir = IIO_EV_DIR_RISING,
 		.mask_shared_by_all = BIT(IIO_EV_INFO_ENABLE) |
 				      BIT(IIO_EV_INFO_PERIOD) |
 				      BIT(IIO_EV_INFO_VALUE),
 	},
 	{
-		.type = IIO_EV_TYPE_THRESH,
+		.type = IIO_EV_TYPE_MAG_REFERENCED,
 		.dir = IIO_EV_DIR_FALLING,
 		.mask_shared_by_all = BIT(IIO_EV_INFO_ENABLE) |
 				      BIT(IIO_EV_INFO_PERIOD) |
