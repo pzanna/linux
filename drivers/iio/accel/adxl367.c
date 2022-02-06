@@ -1450,33 +1450,17 @@ static const struct iio_chan_spec adxl367_channels[] = {
 			IIO_VOLTAGE),
 };
 
-static int adxl367_reset(struct adxl367_state *st)
-{
-	int ret;
-
-	ret = regmap_write(st->regmap, ADXL367_REG_RESET, ADXL367_RESET_CODE);
-	if (ret)
-		return ret;
-
-	usleep_range(2000, 2100);
-
-	return 0;
-}
-
 static int adxl367_verify_devid(struct adxl367_state *st)
 {
 	unsigned int val;
 	int ret;
 
-	ret = regmap_read(st->regmap, ADXL367_REG_DEVID, &val);
+	ret = regmap_read_poll_timeout(st->regmap, ADXL367_REG_DEVID, val,
+				       val == ADXL367_DEVID_AD, 1000, 10000);
 	if (ret)
-		return ret;
-
-	if (val != ADXL367_DEVID_AD) {
 		return dev_err_probe(st->dev, -ENODEV,
 				     "Invalid dev id 0x%02X, expected 0x%02X\n",
 				     val, ADXL367_DEVID_AD);
-	}
 
 	return 0;
 }
@@ -1566,11 +1550,11 @@ int adxl367_probe(struct device *dev, const struct adxl367_ops *ops,
 		return dev_err_probe(st->dev, ret,
 				     "Failed to add regulators disable action\n");
 
-	ret = adxl367_verify_devid(st);
+	ret = regmap_write(st->regmap, ADXL367_REG_RESET, ADXL367_RESET_CODE);
 	if (ret)
 		return ret;
 
-	ret = adxl367_reset(st);
+	ret = adxl367_verify_devid(st);
 	if (ret)
 		return ret;
 
