@@ -35,6 +35,7 @@
 #define ADXL367_REG_Z_DATA_H		0x12
 #define ADXL367_REG_TEMP_DATA_H		0x14
 #define ADXL367_REG_EX_ADC_DATA_H	0x16
+#define ADXL367_DATA_MASK		GENMASK(15, 2)
 
 #define ADXL367_TEMP_25C		165
 #define ADXL367_TEMP_PER_C		54
@@ -792,7 +793,7 @@ static int adxl367_read_sample(struct iio_dev *indio_dev,
 	if (ret)
 		goto out;
 
-	sample = be16_to_cpu(st->sample_buf) >> chan->scan_type.shift;
+	sample = FIELD_GET(ADXL367_DATA_MASK, be16_to_cpu(st->sample_buf));
 	*val = sign_extend32(sample, chan->scan_type.realbits - 1);
 
 	ret = adxl367_set_temp_adc_reg_en(st, chan->address, false);
