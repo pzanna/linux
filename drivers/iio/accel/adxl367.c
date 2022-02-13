@@ -1256,7 +1256,7 @@ out:
 static bool adxl367_find_mask_fifo_format(const unsigned long *scan_mask,
 					  enum adxl367_fifo_format *fifo_format)
 {
-	size_t size = ARRAY_SIZE(adxl367_channel_masks) - 1;
+	size_t size = ARRAY_SIZE(adxl367_fifo_formats);
 	int i;
 
 	for (i = 0; i < size; i++)
