@@ -237,7 +237,7 @@ enum {
 #define ADXL367_TEMP_CHANNEL_MASK	BIT(ADXL367_TEMP_CHANNEL_INDEX)
 #define ADXL367_EX_ADC_CHANNEL_MASK	BIT(ADXL367_EX_ADC_CHANNEL_INDEX)
 
-static const unsigned long adxl367_fifo_formats[] = {
+static const enum adxl367_fifo_format adxl367_fifo_formats[] = {
 	ADXL367_FIFO_FORMAT_X,
 	ADXL367_FIFO_FORMAT_Y,
 	ADXL367_FIFO_FORMAT_Z,
