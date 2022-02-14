@@ -705,6 +705,10 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 	int ret;
 	int i;
 
+	st->mclk = devm_clk_get_optional(dev, "mclk");
+	if (IS_ERR(st->mclk))
+		return ret;
+
 	st->int_pin_sel = AD4130_INT_PIN_CLK;
 	device_property_read_u32(dev, "adi,int-pin-sel", &st->int_pin_sel);
 
@@ -740,6 +744,12 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 		return -EINVAL;
 	}
 
+	if (st->mclk && (st->mclk_sel == AD4130_MCLK_76_8KHZ ||
+			 st->mclk_sel == AD4130_MCLK_76_8KHZ_OUT)) {
+		dev_err(dev, "Cannot use external clock\n");
+		return -EINVAL;
+	}
+
 	ret = ad4130_parse_fw_children(indio_dev);
 	if (ret)
 		return ret;
@@ -752,11 +762,36 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 	return 0;
 }
 
+static void ad4130_clk_disable_unprepare(void *clk)
+{
+	clk_disable_unprepare(clk);
+}
+
 static int ad4130_setup(struct iio_dev *indio_dev)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
+	struct device *dev = &st->spi->dev;
+	unsigned long rate = 0;
 	unsigned int i;
 	int ret;
+
+	if (st->mclk_sel == AD4130_MCLK_76_8KHZ_EXT)
+		rate = 76800;
+	else if (st->mclk_sel == AD4130_MCLK_153_6KHZ_EXT)
+		rate = 153600;
+
+	ret = clk_set_rate(st->mclk, rate);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(st->mclk);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(dev, ad4130_clk_disable_unprepare,
+				       st->mclk);
+	if (ret)
+		return ret;
 
 	/* Switch to SPI 4-wire mode. */
 	ret = regmap_update_bits(st->regmap, AD4130_REG_ADC_CONTROL,
@@ -884,10 +919,6 @@ static int ad4130_probe(struct spi_device *spi)
 	ret = ad4130_soft_reset(st);
 	if (ret)
 		return ret;
-
-	st->mclk = devm_clk_get(&spi->dev, "mclk");
-	if (IS_ERR(st->mclk))
-		return PTR_ERR(st->mclk);
 
 	ret = ad4310_parse_fw(indio_dev);
 	if (ret)
