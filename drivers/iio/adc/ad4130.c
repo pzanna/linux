@@ -84,6 +84,13 @@
 #define AD4130_REF_SEL			GENMASK(5, 4)
 #define AD4130_REF_AVDD_AVSS		0x3
 
+#define AD4130_REG_FIFO_CONTROL		0x3a
+#define AD4130_FIFO_MODE_MASK		GENMASK(17, 16)
+#define AD4130_WATERMARK_INT_EN_MASK	BIT(9)
+#define AD4130_WATERMARK_MASK		GENMASK(7, 0)
+#define AD4130_WATERMARK_256		0
+#define AD4130_FIFO_SIZE		256
+
 #define AD4130_MAX_GPIOS		4
 #define AD4130_MAX_SETUPS		8
 #define AD4130_MAX_CHANNELS		16
@@ -115,6 +122,7 @@ static const unsigned int ad4130_reg_size[] = {
 		...
 		AD4130_REG_CONFIG_X(AD4130_MAX_SETUPS)
 	] = 2,
+	[AD4130_REG_FIFO_CONTROL] = 3,
 };
 
 static const unsigned int ad4130_iout_current_na_tbl[] = {
@@ -140,6 +148,11 @@ enum ad4130_id {
 	ID_AD4130_8_24_LFCSP,
 	ID_AD4130_8_16_WLCSP,
 	ID_AD4130_8_16_LFCSP,
+};
+
+enum ad4130_fifo_mode {
+	AD4130_FIFO_MODE_DISABLED = 0b00,
+	AD4130_FIFO_MODE_WATERMARK = 0b01,
 };
 
 enum ad4130_mode {
@@ -453,10 +466,76 @@ static int ad4130_update_scan_mode(struct iio_dev *indio_dev,
 	return 0;
 }
 
+static int ad4130_set_watermark(struct iio_dev *indio_dev, unsigned int val)
+{
+	struct ad4130_state *st = iio_priv(indio_dev);
+
+	if (val > AD4130_FIFO_SIZE)
+		return -EINVAL;
+
+	if (val == AD4130_FIFO_SIZE)
+		val = AD4130_WATERMARK_256;
+
+	return regmap_update_bits(st->regmap, AD4130_REG_FIFO_CONTROL,
+				  AD4130_WATERMARK_MASK,
+				  FIELD_PREP(AD4130_WATERMARK_MASK, val));
+}
+
 static const struct iio_info ad4130_info = {
 	.read_raw = ad4130_read_raw,
 	.update_scan_mode = ad4130_update_scan_mode,
+	.hwfifo_set_watermark = ad4130_set_watermark,
 	.debugfs_reg_access = ad4130_reg_access,
+};
+
+static ssize_t ad4130_get_fifo_watermark(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	struct ad4130_state *st = iio_priv(dev_to_iio_dev(dev));
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(st->regmap, AD4130_REG_FIFO_CONTROL, &val);
+	if (ret)
+		return ret;
+
+	val = FIELD_GET(AD4130_WATERMARK_MASK, val);
+
+	return sysfs_emit(buf, "%d\n", val);
+}
+
+static ssize_t ad4130_get_fifo_enabled(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct ad4130_state *st = iio_priv(dev_to_iio_dev(dev));
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(st->regmap, AD4130_REG_FIFO_CONTROL, &val);
+	if (ret)
+		return ret;
+
+	val = FIELD_GET(AD4130_FIFO_MODE_MASK, val);
+
+	return sysfs_emit(buf, "%d\n", val != AD4130_FIFO_MODE_DISABLED);
+}
+
+static IIO_CONST_ATTR(hwfifo_watermark_min, "1");
+static IIO_CONST_ATTR(hwfifo_watermark_max,
+		      __stringify(AD4130_FIFO_SIZE));
+static IIO_DEVICE_ATTR(hwfifo_watermark, 0444,
+		       ad4130_get_fifo_watermark, NULL, 0);
+static IIO_DEVICE_ATTR(hwfifo_enabled, 0444,
+		       ad4130_get_fifo_enabled, NULL, 0);
+
+static const struct attribute *ad4130_fifo_attributes[] = {
+	&iio_const_attr_hwfifo_watermark_min.dev_attr.attr,
+	&iio_const_attr_hwfifo_watermark_max.dev_attr.attr,
+	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
+	&iio_dev_attr_hwfifo_enabled.dev_attr.attr,
+	NULL,
 };
 
 static int ad4130_validate_diff_channel(struct ad4130_state *st, u32 pin)
