@@ -361,6 +361,13 @@ static int ad4130_set_channel_enable(struct ad4130_state *st,
 				  FIELD_PREP(AD4130_CHANNEL_EN_MASK, status));
 }
 
+static int ad4130_set_watermark_interrupt_en(struct ad4130_state *st, bool en)
+{
+	return regmap_update_bits(st->regmap, AD4130_REG_FIFO_CONTROL,
+				  AD4130_WATERMARK_INT_EN_MASK,
+				  en ? AD4130_WATERMARK_INT_EN_MASK : 0);
+}
+
 static irqreturn_t ad4130_irq_handler(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
@@ -899,6 +906,11 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 
 	/* ADC starts out in single conversion mode, switch to idle. */
 	ret = ad4130_set_mode(st, AD4130_MODE_IDLE);
+	if (ret)
+		return ret;
+
+	/* FIFO watermark interrupt starts out as enabled, disable it. */
+	ret = ad4130_set_watermark_interrupt_en(st, false);
 	if (ret)
 		return ret;
 
