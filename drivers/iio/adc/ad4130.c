@@ -110,6 +110,11 @@ static const unsigned int ad4130_reg_size[] = {
 		...
 		AD4130_REG_CHANNEL_X(AD4130_MAX_CHANNELS)
 	] = 3,
+	[
+		AD4130_REG_CONFIG_X(0)
+		...
+		AD4130_REG_CONFIG_X(AD4130_MAX_SETUPS)
+	] = 2,
 };
 
 static const unsigned int ad4130_iout_current_na_tbl[] = {
