@@ -361,7 +361,7 @@ static int ad4130_set_channel_enable(struct ad4130_state *st,
 				  FIELD_PREP(AD4130_CHANNEL_EN_MASK, status));
 }
 
-static int ad4130_set_watermark_interrupt_en(struct ad4130_state *st, bool en)
+static int ad4130_set_fifo_watermark_interrupt_en(struct ad4130_state *st, bool en)
 {
 	return regmap_update_bits(st->regmap, AD4130_REG_FIFO_CONTROL,
 				  AD4130_WATERMARK_INT_EN_MASK,
@@ -473,7 +473,8 @@ static int ad4130_update_scan_mode(struct iio_dev *indio_dev,
 	return 0;
 }
 
-static int ad4130_set_watermark(struct iio_dev *indio_dev, unsigned int val)
+static int ad4130_set_fifo_watermark(struct iio_dev *indio_dev,
+				     unsigned int val)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 
@@ -491,13 +492,13 @@ static int ad4130_set_watermark(struct iio_dev *indio_dev, unsigned int val)
 static const struct iio_info ad4130_info = {
 	.read_raw = ad4130_read_raw,
 	.update_scan_mode = ad4130_update_scan_mode,
-	.hwfifo_set_watermark = ad4130_set_watermark,
+	.hwfifo_set_watermark = ad4130_set_fifo_watermark,
 	.debugfs_reg_access = ad4130_reg_access,
 };
 
 static ssize_t ad4130_get_fifo_watermark(struct device *dev,
-					  struct device_attribute *attr,
-					  char *buf)
+					 struct device_attribute *attr,
+					 char *buf)
 {
 	struct ad4130_state *st = iio_priv(dev_to_iio_dev(dev));
 	unsigned int val;
@@ -513,8 +514,8 @@ static ssize_t ad4130_get_fifo_watermark(struct device *dev,
 }
 
 static ssize_t ad4130_get_fifo_enabled(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
+				       struct device_attribute *attr,
+				       char *buf)
 {
 	struct ad4130_state *st = iio_priv(dev_to_iio_dev(dev));
 	unsigned int val;
@@ -910,7 +911,7 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 		return ret;
 
 	/* FIFO watermark interrupt starts out as enabled, disable it. */
-	ret = ad4130_set_watermark_interrupt_en(st, false);
+	ret = ad4130_set_fifo_watermark_interrupt_en(st, false);
 	if (ret)
 		return ret;
 
