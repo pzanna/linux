@@ -91,7 +91,10 @@
 #define AD4130_WATERMARK_INT_EN_MASK	BIT(9)
 #define AD4130_WATERMARK_MASK		GENMASK(7, 0)
 #define AD4130_WATERMARK_256		0
+
+#define AD4130_REG_FIFO_DATA		0x3d
 #define AD4130_FIFO_SIZE		256
+#define AD4130_FIFO_MAX_SAMPLE_SIZE	3
 
 #define AD4130_MAX_GPIOS		4
 #define AD4130_MAX_SETUPS		8
@@ -217,6 +220,9 @@ struct ad4130_state {
 	unsigned int		effective_watermark;
 	unsigned int		watermark;
 
+	struct spi_message	fifo_msg;
+	struct spi_transfer	fifo_xfer[2];
+
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
@@ -225,6 +231,9 @@ struct ad4130_state {
 	u8			reg_write_tx_buf[4] ____cacheline_aligned;
 	u8			reg_read_tx_buf[1];
 	u8			reg_read_rx_buf[3];
+	u8			fifo_tx_buf[2];
+	u8			fifo_rx_buf[AD4130_FIFO_SIZE *
+					    AD4130_FIFO_MAX_SAMPLE_SIZE];
 };
 
 static const struct iio_chan_spec ad4130_channel_template = {
@@ -1129,6 +1138,17 @@ static int ad4130_probe(struct spi_device *spi)
 	mutex_init(&st->lock);
 	st->chip_info = info;
 	st->spi = spi;
+
+	/*
+	 * Xfer:   [ XFR1 ] [         XFR2         ]
+	 * Master:  0x7D N   ......................
+	 * Slave:   ......   DATA1 DATA2 ... DATAN
+	 */
+	st->fifo_tx_buf[0] = ad4130_format_reg_read(AD4130_REG_FIFO_DATA);
+	st->fifo_xfer[0].tx_buf = st->fifo_tx_buf;
+	st->fifo_xfer[0].len = sizeof(st->fifo_tx_buf);
+	spi_message_init_with_transfers(&st->fifo_msg, st->fifo_xfer,
+					ARRAY_SIZE(st->fifo_xfer));
 
 	indio_dev->name = st->chip_info->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
