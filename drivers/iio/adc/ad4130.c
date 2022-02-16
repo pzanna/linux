@@ -536,26 +536,21 @@ static int ad4130_update_scan_mode(struct iio_dev *indio_dev,
 	int ret;
 	int i;
 
-	mutex_lock(&st->lock);
-
 	for (i = 0; i < indio_dev->num_channels; i++) {
 		ret = ad4130_set_channel_enable(st, i, test_bit(i, scan_mask));
 		if (ret)
-			goto out;
+			return ret;
 
 		val++;
 	}
 
 	ret = ad4130_update_watermark(st, st->watermark, val);
 	if (ret)
-		goto out;
+		return ret;
 
 	st->num_enabled_channels = val;
 
-out:
-	mutex_unlock(&st->lock);
-
-	return ret;
+	return 0;
 }
 
 static int ad4130_set_fifo_watermark(struct iio_dev *indio_dev,
@@ -567,18 +562,13 @@ static int ad4130_set_fifo_watermark(struct iio_dev *indio_dev,
 	if (val > AD4130_FIFO_SIZE)
 		return -EINVAL;
 
-	mutex_lock(&st->lock);
-
 	ret = ad4130_update_watermark(st, val, st->num_enabled_channels);
 	if (ret)
-		goto out;
+		return ret;
 
 	st->watermark = val;
 
-out:
-	mutex_unlock(&st->lock);
-
-	return ret;
+	return 0;
 }
 
 static const struct iio_info ad4130_info = {
