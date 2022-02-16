@@ -376,12 +376,20 @@ static int ad4130_set_fifo_mode(struct ad4130_state *st,
 				  FIELD_PREP(AD4130_FIFO_MODE_MASK, mode));
 }
 
+static void ad4130_push_fifo_data(struct iio_dev *indio_dev)
+{
+
+}
+
 static irqreturn_t ad4130_irq_handler(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
 	struct ad4130_state *st = iio_priv(indio_dev);
 
-	complete(&st->completion);
+	if (iio_buffer_enabled(indio_dev))
+		ad4130_push_fifo_data(indio_dev);
+	else
+		complete(&st->completion);
 
 	return IRQ_HANDLED;
 }
