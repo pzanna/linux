@@ -368,6 +368,14 @@ static int ad4130_set_watermark_interrupt_en(struct ad4130_state *st, bool en)
 				  en ? AD4130_WATERMARK_INT_EN_MASK : 0);
 }
 
+static int ad4130_set_fifo_mode(struct ad4130_state *st,
+				enum ad4130_fifo_mode mode)
+{
+	return regmap_update_bits(st->regmap, AD4130_REG_FIFO_CONTROL.
+				  AD4130_FIFO_MODE_MASK
+				  FIELD_PREP(AD4130_FIFO_MODE_MASK, mode));
+}
+
 static irqreturn_t ad4130_irq_handler(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
@@ -507,6 +515,10 @@ static int ad4130_buffer_postenable(struct iio_dev *indio_dev)
 	if (ret)
 		goto out;
 
+	ret = ad4130_set_fifo_mode(st, AD4130_FIFO_MODE_WATERMARK);
+	if (ret)
+		goto out;
+
 	ret = ad4130_set_mode(st, AD4130_MODE_CONTINUOUS);
 
 out:
@@ -523,6 +535,10 @@ static int ad4130_buffer_predisable(struct iio_dev *indio_dev)
 	mutex_lock(&st->lock);
 
 	ret = ad4130_set_mode(st, AD4130_MODE_IDLE);
+	if (ret)
+		goto out;
+
+	ret = ad4130_set_fifo_mode(st, AD4130_FIFO_MODE_DISABLED);
 	if (ret)
 		goto out;
 
