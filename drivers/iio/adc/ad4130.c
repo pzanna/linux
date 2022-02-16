@@ -387,6 +387,14 @@ static int ad4130_set_watermark_interrupt_en(struct ad4130_state *st, bool en)
 				  en ? AD4130_WATERMARK_INT_EN_MASK : 0);
 }
 
+static unsigned int ad4130_watermark_to_reg_val(unsigned int val)
+{
+	if (val == AD4130_FIFO_SIZE)
+		val = AD4130_WATERMARK_256;
+
+	return val;
+}
+
 static int ad4130_update_watermark(struct ad4130_state *st,
 				   unsigned int watermark,
 				   unsigned int num_enabled_channels)
@@ -398,12 +406,10 @@ static int ad4130_update_watermark(struct ad4130_state *st,
 	unsigned int val = rounddown(watermark, num_enabled_channels);
 	int ret;
 
-	if (val == AD4130_FIFO_SIZE)
-		val = AD4130_WATERMARK_256;
-
 	ret = regmap_update_bits(st->regmap, AD4130_REG_FIFO_CONTROL,
 				 AD4130_WATERMARK_MASK,
-				 FIELD_PREP(AD4130_WATERMARK_MASK, val));
+				 FIELD_PREP(AD4130_WATERMARK_MASK,
+					    ad4130_watermark_to_reg_val(val)));
 	if (ret)
 		return ret;
 
