@@ -433,7 +433,23 @@ static int ad4130_set_fifo_mode(struct ad4130_state *st,
 
 static void ad4130_push_fifo_data(struct iio_dev *indio_dev)
 {
+	struct ad4130_state *st = iio_priv(indio_dev);
+	unsigned int transfer_len = st->effective_watermark *
+				    ad4130_data_reg_size(st);
+	unsigned int set_size = st->num_enabled_channels *
+				ad4130_data_reg_size(st);
+	unsigned int i;
+	int ret;
 
+	st->fifo_tx_buf[1] = ad4130_watermark_reg_val(st->effective_watermark);
+	st->fifo_xfer[1].len = transfer_len;
+
+	ret = spi_sync(st->spi, &st->fifo_msg);
+	if (ret)
+		return;
+
+	for (i = 0; i < transfer_len; i += set_size)
+		iio_push_to_buffers(indio_dev, &st->fifo_rx_buf[i]);
 }
 
 static irqreturn_t ad4130_irq_handler(int irq, void *private)
