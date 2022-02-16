@@ -28,7 +28,6 @@
 
 #define AD4130_8_NAME			"ad4130-8"
 
-#define AD4130_REG_COMMS		0x00
 #define AD4130_COMMS_READ_MASK		BIT(6)
 #define AD4130_COMMS_REG_MASK		GENMASK(5, 0)
 
