@@ -496,7 +496,36 @@ static const struct iio_info ad4130_info = {
 	.debugfs_reg_access = ad4130_reg_access,
 };
 
+static int ad4130_buffer_postenable(struct iio_dev *indio_dev)
+{
+	struct ad4130_state *st = iio_priv(indio_dev);
+	int ret;
+
+	mutex_lock(&st->lock);
+
+
+out:
+	mutex_unlock(&st->lock);
+
+	return ret;
+}
+
+static int ad4130_buffer_predisable(struct iio_dev *indio_dev)
+{
+	struct ad4130_state *st = iio_priv(indio_dev);
+	int ret;
+
+	mutex_lock(&st->lock);
+
+out:
+	mutex_unlock(&st->lock);
+
+	return ret;
+}
+
 static const struct iio_buffer_setup_ops ad4130_buffer_ops = {
+	.postenable = ad4130_buffer_postenable,
+	.predisable = ad4130_buffer_predisable,
 };
 
 static ssize_t ad4130_get_fifo_watermark(struct device *dev,
