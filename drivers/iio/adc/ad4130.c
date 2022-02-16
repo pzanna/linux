@@ -15,6 +15,8 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
+#include <linux/iio/buffer.h>
+#include <linux/iio/kfifo_buf.h>
 #include <linux/module.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
