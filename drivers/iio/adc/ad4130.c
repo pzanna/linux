@@ -361,7 +361,7 @@ static int ad4130_set_channel_enable(struct ad4130_state *st,
 				  FIELD_PREP(AD4130_CHANNEL_EN_MASK, status));
 }
 
-static int ad4130_set_fifo_watermark_interrupt_en(struct ad4130_state *st, bool en)
+static int ad4130_set_watermark_interrupt_en(struct ad4130_state *st, bool en)
 {
 	return regmap_update_bits(st->regmap, AD4130_REG_FIFO_CONTROL,
 				  AD4130_WATERMARK_INT_EN_MASK,
@@ -503,7 +503,7 @@ static int ad4130_buffer_postenable(struct iio_dev *indio_dev)
 
 	mutex_lock(&st->lock);
 
-	ret = ad4130_set_fifo_watermark_interrupt_en(st, true);
+	ret = ad4130_set_watermark_interrupt_en(st, true);
 	if (ret)
 		return ret;
 
@@ -525,7 +525,7 @@ static int ad4130_buffer_predisable(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 
-	ret = ad4130_set_fifo_watermark_interrupt_en(st, false);
+	ret = ad4130_set_watermark_interrupt_en(st, false);
 
 out:
 	mutex_unlock(&st->lock);
@@ -953,7 +953,7 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 		return ret;
 
 	/* FIFO watermark interrupt starts out as enabled, disable it. */
-	ret = ad4130_set_fifo_watermark_interrupt_en(st, false);
+	ret = ad4130_set_watermark_interrupt_en(st, false);
 	if (ret)
 		return ret;
 
