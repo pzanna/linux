@@ -1157,7 +1157,7 @@ static int ad4130_probe(struct spi_device *spi)
 			return ret;
 	}
 
-	buffer = devm_iio_kfifo_allocate(st->dev);
+	buffer = devm_iio_kfifo_allocate(&spi->dev);
 	if (!buffer)
 		return -ENOMEM;
 
