@@ -521,6 +521,7 @@ static int ad4130_buffer_predisable(struct iio_dev *indio_dev)
 	int ret;
 
 	mutex_lock(&st->lock);
+
 	ret = ad4130_set_mode(st, AD4130_MODE_IDLE);
 	if (ret)
 		goto out;
