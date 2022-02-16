@@ -1040,7 +1040,6 @@ static int ad4130_probe(struct spi_device *spi)
 			return ret;
 	}
 
-	irq_set_status_flags(spi->irq, IRQ_NOAUTOEN);
 	ret = devm_request_threaded_irq(&spi->dev, spi->irq, NULL,
 					ad4130_irq_handler, IRQF_ONESHOT,
 					indio_dev->name, indio_dev);
