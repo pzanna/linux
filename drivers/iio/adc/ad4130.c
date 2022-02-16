@@ -503,6 +503,7 @@ static int ad4130_buffer_postenable(struct iio_dev *indio_dev)
 
 	mutex_lock(&st->lock);
 
+	ret = ad4130_set_fifo_watermark_interrupt_en(st, true);
 
 out:
 	mutex_unlock(&st->lock);
@@ -516,6 +517,8 @@ static int ad4130_buffer_predisable(struct iio_dev *indio_dev)
 	int ret;
 
 	mutex_lock(&st->lock);
+
+	ret = ad4130_set_fifo_watermark_interrupt_en(st, false);
 
 out:
 	mutex_unlock(&st->lock);
