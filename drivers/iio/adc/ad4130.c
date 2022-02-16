@@ -254,6 +254,11 @@ static int ad4130_get_reg_size(struct ad4130_state *st, unsigned int reg,
 	return 0;
 }
 
+static u8 ad4130_format_reg_read(unsigned int reg)
+{
+	return AD4130_COMMS_READ_MASK | FIELD_PREP(AD4130_COMMS_REG_MASK, reg);
+}
+
 static int ad4130_reg_write(void *context, unsigned int reg, unsigned int val)
 {
 	struct ad4130_state *st = context;
@@ -306,8 +311,7 @@ static int ad4130_reg_read(void *context, unsigned int reg, unsigned int *val)
 	if (ret)
 		return ret;
 
-	st->reg_read_tx_buf[0] = AD4130_COMMS_READ_MASK |
-				 FIELD_PREP(AD4130_COMMS_REG_MASK, reg);
+	st->reg_read_tx_buf[0] = ad4130_format_reg_read(reg);
 	t[1].len = size;
 
 	ret = spi_sync_transfer(st->spi, t, ARRAY_SIZE(t));
