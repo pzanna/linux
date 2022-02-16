@@ -247,6 +247,11 @@ static const struct iio_chan_spec ad4130_channel_template = {
 	},
 };
 
+static unsigned int ad4130_data_reg_size(struct ad4130_state *st)
+{
+	return st->chip_info->resolution / 8;
+}
+
 static int ad4130_get_reg_size(struct ad4130_state *st, unsigned int reg,
 			       unsigned int *size)
 {
@@ -254,7 +259,7 @@ static int ad4130_get_reg_size(struct ad4130_state *st, unsigned int reg,
 		return -EINVAL;
 
 	if (reg == AD4130_REG_DATA) {
-		*size = st->chip_info->resolution / 8;
+		*size = ad4130_data_reg_size(st);
 		return 0;
 	}
 
