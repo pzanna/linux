@@ -87,6 +87,7 @@
 #define AD4130_REF_AVDD_AVSS		0x3
 
 #define AD4130_REG_FIFO_CONTROL		0x3a
+#define AD4130_ADD_FIFO_HEADER_MASK	BIT(18)
 #define AD4130_FIFO_MODE_MASK		GENMASK(17, 16)
 #define AD4130_WATERMARK_INT_EN_MASK	BIT(9)
 #define AD4130_WATERMARK_MASK		GENMASK(7, 0)
@@ -1018,6 +1019,11 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 				 AD4130_INT_PIN_SEL_MASK,
 				 FIELD_PREP(AD4130_INT_PIN_SEL_MASK,
 					    st->int_pin_sel));
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(st->regmap, AD4130_REG_FIFO_CONTROL,
+				 AD4130_ADD_FIFO_HEADER_MASK, 0);
 	if (ret)
 		return ret;
 
