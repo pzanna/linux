@@ -401,7 +401,7 @@ static int ad4130_set_fifo_mode(struct ad4130_state *st,
 				enum ad4130_fifo_mode mode)
 {
 	return regmap_update_bits(st->regmap, AD4130_REG_FIFO_CONTROL,
-				  AD4130_FIFO_MODE_MASK
+				  AD4130_FIFO_MODE_MASK,
 				  FIELD_PREP(AD4130_FIFO_MODE_MASK, mode));
 }
 
