@@ -496,6 +496,9 @@ static const struct iio_info ad4130_info = {
 	.debugfs_reg_access = ad4130_reg_access,
 };
 
+static const struct iio_buffer_setup_ops ad4130_buffer_ops = {
+};
+
 static ssize_t ad4130_get_fifo_watermark(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
@@ -984,8 +987,9 @@ static int ad4130_soft_reset(struct ad4130_state *st)
 static int ad4130_probe(struct spi_device *spi)
 {
 	const struct ad4130_chip_info *info;
-	struct ad4130_state *st;
 	struct iio_dev *indio_dev;
+	struct iio_buffer *buffer;
+	struct ad4130_state *st;
 	int ret;
 
 	info = device_get_match_data(&spi->dev);
@@ -1039,6 +1043,15 @@ static int ad4130_probe(struct spi_device *spi)
 		if (ret)
 			return ret;
 	}
+
+	buffer = devm_iio_kfifo_allocate(st->dev);
+	if (!buffer)
+		return -ENOMEM;
+
+	iio_device_attach_buffer(indio_dev, buffer);
+
+	indio_dev->setup_ops = &ad4130_buffer_ops;
+	iio_buffer_set_attrs(indio_dev->buffer, ad4130_fifo_attributes);
 
 	ret = devm_request_threaded_irq(&spi->dev, spi->irq, NULL,
 					ad4130_irq_handler, IRQF_ONESHOT,
