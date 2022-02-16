@@ -538,6 +538,7 @@ static int ad4130_set_fifo_watermark(struct iio_dev *indio_dev,
 				     unsigned int val)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
+	int ret;
 
 	if (val > AD4130_FIFO_SIZE)
 		return -EINVAL;
