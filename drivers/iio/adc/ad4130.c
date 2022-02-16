@@ -211,6 +211,10 @@ struct ad4130_state {
 	u32			int_pin_sel;
 	u32			mclk_sel;
 
+	unsigned int		num_enabled_channels;
+	unsigned int		effective_watermark;
+	unsigned int		watermark;
+
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
@@ -368,6 +372,31 @@ static int ad4130_set_watermark_interrupt_en(struct ad4130_state *st, bool en)
 				  en ? AD4130_WATERMARK_INT_EN_MASK : 0);
 }
 
+static int ad4130_update_watermark(struct ad4130_state *st,
+				   unsigned int watermark,
+				   unsigned int num_enabled_channels)
+{
+	/*
+	 * Always set watermark to a multiple of the number of enabled channels
+	 * to avoid making the FIFO unaligned.
+	 */
+	unsigned int val = rounddown(watermark, num_enabled_channels);
+	int ret;
+
+	if (val == AD4130_FIFO_SIZE)
+		val = AD4130_WATERMARK_256;
+
+	ret = regmap_update_bits(st->regmap, AD4130_REG_FIFO_CONTROL,
+				 AD4130_WATERMARK_MASK,
+				 FIELD_PREP(AD4130_WATERMARK_MASK, val));
+	if (ret)
+		return ret;
+
+	st->effective_watermark = val;
+
+	return 0;
+}
+
 static int ad4130_set_fifo_mode(struct ad4130_state *st,
 				enum ad4130_fifo_mode mode)
 {
@@ -477,16 +506,30 @@ static int ad4130_update_scan_mode(struct iio_dev *indio_dev,
 				   const unsigned long *scan_mask)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
+	unsigned int val = 0;
 	int ret;
 	int i;
+
+	mutex_lock(&st->lock);
 
 	for (i = 0; i < indio_dev->num_channels; i++) {
 		ret = ad4130_set_channel_enable(st, i, test_bit(i, scan_mask));
 		if (ret)
-			return ret;
+			goto out;
+
+		val++;
 	}
 
-	return 0;
+	ret = ad4130_update_watermark(st, st->watermark, val);
+	if (ret)
+		goto out;
+
+	st->num_enabled_channels = val;
+
+out:
+	mutex_unlock(&st->lock);
+
+	return ret;
 }
 
 static int ad4130_set_fifo_watermark(struct iio_dev *indio_dev,
@@ -497,12 +540,18 @@ static int ad4130_set_fifo_watermark(struct iio_dev *indio_dev,
 	if (val > AD4130_FIFO_SIZE)
 		return -EINVAL;
 
-	if (val == AD4130_FIFO_SIZE)
-		val = AD4130_WATERMARK_256;
+	mutex_lock(&st->lock);
 
-	return regmap_update_bits(st->regmap, AD4130_REG_FIFO_CONTROL,
-				  AD4130_WATERMARK_MASK,
-				  FIELD_PREP(AD4130_WATERMARK_MASK, val));
+	ret = ad4130_update_watermark(st, val, st->num_enabled_channels);
+	if (ret)
+		goto out;
+
+	st->watermark = val;
+
+out:
+	mutex_unlock(&st->lock);
+
+	return ret;
 }
 
 static const struct iio_info ad4130_info = {
@@ -569,13 +618,10 @@ static ssize_t ad4130_get_fifo_watermark(struct device *dev,
 {
 	struct ad4130_state *st = iio_priv(dev_to_iio_dev(dev));
 	unsigned int val;
-	int ret;
 
-	ret = regmap_read(st->regmap, AD4130_REG_FIFO_CONTROL, &val);
-	if (ret)
-		return ret;
-
-	val = FIELD_GET(AD4130_WATERMARK_MASK, val);
+	mutex_lock(&st->lock);
+	val = st->watermark;
+	mutex_unlock(&st->lock);
 
 	return sysfs_emit(buf, "%d\n", val);
 }
