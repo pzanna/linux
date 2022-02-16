@@ -387,7 +387,7 @@ static int ad4130_set_watermark_interrupt_en(struct ad4130_state *st, bool en)
 				  en ? AD4130_WATERMARK_INT_EN_MASK : 0);
 }
 
-static unsigned int ad4130_watermark_to_reg_val(unsigned int val)
+static unsigned int ad4130_watermark_reg_val(unsigned int val)
 {
 	if (val == AD4130_FIFO_SIZE)
 		val = AD4130_WATERMARK_256;
@@ -409,7 +409,7 @@ static int ad4130_update_watermark(struct ad4130_state *st,
 	ret = regmap_update_bits(st->regmap, AD4130_REG_FIFO_CONTROL,
 				 AD4130_WATERMARK_MASK,
 				 FIELD_PREP(AD4130_WATERMARK_MASK,
-					    ad4130_watermark_to_reg_val(val)));
+					    ad4130_watermark_reg_val(val)));
 	if (ret)
 		return ret;
 
@@ -1153,6 +1153,7 @@ static int ad4130_probe(struct spi_device *spi)
 	st->fifo_tx_buf[0] = ad4130_format_reg_read(AD4130_REG_FIFO_DATA);
 	st->fifo_xfer[0].tx_buf = st->fifo_tx_buf;
 	st->fifo_xfer[0].len = sizeof(st->fifo_tx_buf);
+	st->fifo_xfer[1].tx_buf = st->fifo_rx_buf;
 	spi_message_init_with_transfers(&st->fifo_msg, st->fifo_xfer,
 					ARRAY_SIZE(st->fifo_xfer));
 
