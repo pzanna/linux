@@ -83,7 +83,6 @@
 #define AD4130_REF_BUFP			BIT(7)
 #define AD4130_REF_BUFM			BIT(6)
 #define AD4130_REF_SEL			GENMASK(5, 4)
-#define AD4130_REF_AVDD_AVSS		0x3
 
 #define AD4130_REG_FIFO_CONTROL		0x3a
 #define AD4130_ADD_FIFO_HEADER_MASK	BIT(18)
@@ -153,6 +152,13 @@ enum ad4130_id {
 	ID_AD4130_8_24_LFCSP,
 	ID_AD4130_8_16_WLCSP,
 	ID_AD4130_8_16_LFCSP,
+};
+
+enum ad4130_ref_sel {
+	AD4130_REF_REFIN1 = 0b00,
+	AD4130_REF_REFIN2 = 0b01,
+	AD4130_REF_REFOUT_AVSS = 0b10,
+	AD4130_REF_AVDD_AVSS = 0b11,
 };
 
 enum ad4130_fifo_mode {
@@ -896,6 +902,7 @@ static int ad4130_parse_fw_setup(struct iio_dev *indio_dev,
 	setup_info->ref_bufm =
 		fwnode_property_read_bool(child, "adi,buffered-negative");
 
+	setup_info->ref_sel = AD4130_REF_REFOUT_AVSS;
 	fwnode_property_read_u32(child, "adi,reference-select",
 				 &setup_info->ref_sel);
 	if (setup_info->ref_sel > AD4130_REF_AVDD_AVSS) {
