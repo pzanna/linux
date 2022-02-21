@@ -1127,13 +1127,6 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(st->regmap, AD4130_REG_IO_CONTROL,
-				 AD4130_INT_PIN_SEL_MASK,
-				 FIELD_PREP(AD4130_INT_PIN_SEL_MASK,
-					    st->int_pin_sel));
-	if (ret)
-		return ret;
-
 	ret = regmap_update_bits(st->regmap, AD4130_REG_ADC_CONTROL,
 				 AD4130_INT_REF_EN_MASK,
 				 FIELD_PREP(AD4130_INT_REF_EN_MASK,
@@ -1150,6 +1143,13 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 				 AD4130_INT_REF_VAL_MASK,
 				 FIELD_PREP(AD4130_INT_REF_VAL_MASK,
 					    int_ref_val));
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(st->regmap, AD4130_REG_IO_CONTROL,
+				 AD4130_INT_PIN_SEL_MASK,
+				 FIELD_PREP(AD4130_INT_PIN_SEL_MASK,
+					    st->int_pin_sel));
 	if (ret)
 		return ret;
 
