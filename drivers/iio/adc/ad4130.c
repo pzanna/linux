@@ -1095,6 +1095,7 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	struct device *dev = &st->spi->dev;
+	unsigned int adc_control_val = 0;
 	unsigned int int_ref_val;
 	unsigned long rate = 0;
 	unsigned int i;
@@ -1118,38 +1119,19 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 
-	/* Switch to SPI 4-wire mode. */
-	ret = regmap_update_bits(st->regmap, AD4130_REG_ADC_CONTROL,
-				 AD4130_CSB_EN_MASK, AD4130_CSB_EN_MASK);
-	if (ret)
-		return ret;
-
-	ret = regmap_update_bits(st->regmap, AD4130_REG_ADC_CONTROL,
-				 AD4130_MCLK_SEL_MASK,
-				 FIELD_PREP(AD4130_MCLK_SEL_MASK,
-					    st->mclk_sel));
-	if (ret)
-		return ret;
-
-	ret = regmap_update_bits(st->regmap, AD4130_REG_ADC_CONTROL,
-				 AD4130_INT_REF_EN_MASK,
-				 st->int_ref_en ? AD4130_INT_REF_EN_MASK : 0);
-	if (ret)
-		return ret;
-
-	ret = regmap_update_bits(st->regmap, AD4130_REG_ADC_CONTROL,
-				 AD4130_BIPOLAR_MASK,
-				 st->bipolar ? AD4130_BIPOLAR_MASK : 0);
-
 	if (st->int_ref_uv == AD4130_INT_REF_2_5V)
 		int_ref_val = AD4130_INT_REF_VAL_2_5V;
 	else
 		int_ref_val = AD4130_INT_REF_VAL_1_25V;
 
-	ret = regmap_update_bits(st->regmap, AD4130_REG_ADC_CONTROL,
-				 AD4130_INT_REF_VAL_MASK,
-				 FIELD_PREP(AD4130_INT_REF_VAL_MASK,
-					    int_ref_val));
+	/* Switch to SPI 4-wire mode. */
+	adc_control_val |= AD4130_CSB_EN_MASK;
+	adc_control_val |= st->bipolar ? AD4130_BIPOLAR_MASK : 0;
+	adc_control_val |= st->int_ref_en ? AD4130_INT_REF_EN_MASK : 0;
+	adc_control_val |= FIELD_PREP(AD4130_MCLK_SEL_MASK, st->mclk_sel);
+	adc_control_val |= FIELD_PREP(AD4130_INT_REF_VAL_MASK, int_ref_val);
+
+	ret = regmap_write(st->regmap, AD4130_REG_ADC_CONTROL, adc_control_val);
 	if (ret)
 		return ret;
 
