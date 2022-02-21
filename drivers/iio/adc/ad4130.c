@@ -197,6 +197,8 @@ struct ad4130_state {
 	struct spi_device		*spi;
 	struct regmap			*regmap;
 	struct clk			*mclk;
+	struct regulator		*refin1;
+	struct regulator		*refin2;
 
 	/*
 	 * Synchronize access to members of driver state, and ensure atomicity
@@ -946,6 +948,14 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 	st->mclk = devm_clk_get_optional(dev, "mclk");
 	if (IS_ERR(st->mclk))
 		return PTR_ERR(st->mclk);
+
+	st->refin1 = devm_regulator_get_optional(dev, "refin1");
+	if (IS_ERR(st->refin1))
+		return PTR_ERR(st->refin1);
+
+	st->refin2 = devm_regulator_get_optional(dev, "refin2");
+	if (IS_ERR(st->refin2))
+		return PTR_ERR(st->refin2);
 
 	st->int_pin_sel = AD4130_INT_PIN_CLK;
 	device_property_read_u32(dev, "adi,int-pin-sel", &st->int_pin_sel);
