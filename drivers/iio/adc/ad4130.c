@@ -967,8 +967,7 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 	st->int_pin_sel = AD4130_INT_PIN_CLK;
 	device_property_read_u32(dev, "adi,int-pin-sel", &st->int_pin_sel);
 
-	if (st->int_pin_sel < AD4130_INT_PIN_DOUT_OR_INT ||
-	    st->int_pin_sel > AD4130_INT_PIN_DOUT) {
+	if (st->int_pin_sel > AD4130_INT_PIN_DOUT) {
 		dev_err(dev, "Invalid interrupt pin %u\n", st->int_pin_sel);
 		return -EINVAL;
 	}
@@ -986,8 +985,7 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 	st->mclk_sel = AD4130_MCLK_76_8KHZ;
 	device_property_read_u32(dev, "adi,mclk-sel", &st->mclk_sel);
 
-	if (st->mclk_sel < AD4130_MCLK_76_8KHZ ||
-	    st->mclk_sel > AD4130_MCLK_153_6KHZ_EXT) {
+	if (st->mclk_sel > AD4130_MCLK_153_6KHZ_EXT) {
 		dev_err(dev, "Invalid clock %u\n", st->mclk_sel);
 		return -EINVAL;
 	}
