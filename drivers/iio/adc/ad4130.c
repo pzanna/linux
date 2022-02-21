@@ -1143,7 +1143,7 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 
 	if (st->int_ref_uv == AD4130_INT_REF_2_5V)
 		int_ref_val = AD4130_INT_REF_VAL_2_5V;
-	else if (st->int_ref_uv == AD4130_INT_REF_1_25V)
+	else
 		int_ref_val = AD4130_INT_REF_VAL_1_25V;
 
 	ret = regmap_update_bits(st->regmap, AD4130_REG_ADC_CONTROL,
