@@ -945,7 +945,7 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 
 	st->mclk = devm_clk_get_optional(dev, "mclk");
 	if (IS_ERR(st->mclk))
-		return ret;
+		return PTR_ERR(st->mclk);
 
 	st->int_pin_sel = AD4130_INT_PIN_CLK;
 	device_property_read_u32(dev, "adi,int-pin-sel", &st->int_pin_sel);
