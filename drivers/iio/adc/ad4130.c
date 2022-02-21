@@ -958,6 +958,7 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	struct device *dev = &st->spi->dev;
+	int avdd_uv;
 	int ret;
 	int i;
 
@@ -981,6 +982,13 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 		st->int_ref_en = device_property_read_bool(dev, "adi,int-ref-en");
 
 	st->int_ref_uv = AD4130_INT_REF_2_5V;
+	avdd_uv = regulator_get_voltage(st->regulators[0].consumer);
+	/*
+	 * When the AVDD supply is set to below 2.5V the internal reference of
+	 * 1.25V should be selected.
+	 */
+	if (avdd_uv > 0 && avdd_uv < 2500000)
+		st->int_ref_uv = AD4130_INT_REF_1_25V;
 	device_property_read_u32(dev, "adi-int-ref-microvolt", &st->int_ref_uv);
 	if (st->int_ref_uv != AD4130_INT_REF_2_5V &&
 	    st->int_ref_uv != AD4130_INT_REF_1_25V) {
