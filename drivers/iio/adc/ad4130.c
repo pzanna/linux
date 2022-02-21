@@ -202,6 +202,7 @@ struct ad4130_setup_info {
 	bool		ref_bufp;
 	bool		ref_bufm;
 	u32		ref_sel;
+	u32		ref_uv;
 };
 
 struct ad4130_state {
@@ -918,6 +919,42 @@ static int ad4130_parse_fw_setup(struct iio_dev *indio_dev,
 		dev_err(dev, "Invalid reference selected %u\n",
 			setup_info->ref_sel);
 		return -EINVAL;
+	}
+
+	switch (setup_info->ref_sel) {
+	case AD4130_REF_REFIN1:
+		if (!st->refin1) {
+			dev_err(dev, "Cannot use refin1 without supply\n");
+			return -EINVAL;
+		}
+
+		setup_info->ref_uv = regulator_get_voltage(st->refin1);
+		break;
+	case AD4130_REF_REFIN2:
+		if (!st->refin2) {
+			dev_err(dev, "Cannot use refin2 without supply\n");
+			return -EINVAL;
+		}
+
+		setup_info->ref_uv = regulator_get_voltage(st->refin2);
+		break;
+	case AD4130_REF_REFOUT_AVSS:
+		if (!st->int_ref_en) {
+			dev_err(dev, "Cannot use internal reference\n");
+			return -EINVAL;
+		}
+
+		setup_info->ref_uv = st->int_ref_uv;
+		break;
+	case AD4130_REF_AVDD_AVSS:
+		setup_info->ref_uv = regulator_get_voltage(st->regulators[0].consumer);
+		break;
+	}
+
+	if (setup_info->ref_uv < 0) {
+		dev_err(dev, "Invalid reference voltage: %d\n",
+			setup_info->ref_uv);
+		return setup_info->ref_uv;
 	}
 
 	return 0;
