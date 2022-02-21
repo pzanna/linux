@@ -35,6 +35,7 @@
 #define AD4130_STATUS_POR_FLAG_MSK	BIT(4)
 
 #define AD4130_REG_ADC_CONTROL		0x01
+#define AD4130_BIPOLAR_MASK		BIT(14)
 #define AD4130_INT_REF_VAL_MASK		BIT(13)
 #define AD4130_INT_REF_2_5V		2500000
 #define AD4130_INT_REF_1_25V		1250000
@@ -233,6 +234,7 @@ struct ad4130_state {
 	bool			int_ref_en;
 	u32			int_ref_uv;
 	u32			mclk_sel;
+	bool			bipolar;
 
 	unsigned int		num_enabled_channels;
 	unsigned int		effective_watermark;
@@ -1070,6 +1072,8 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 		return -EINVAL;
 	}
 
+	st->bipolar = device_property_read_bool(dev, "adi,bipolar");
+
 	ret = ad4130_parse_fw_children(indio_dev);
 	if (ret)
 		return ret;
@@ -1133,6 +1137,10 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 					    st->int_ref_en));
 	if (ret)
 		return ret;
+
+	ret = regmap_update_bits(st->regmap, AD4130_REG_ADC_CONTROL,
+				 AD4130_BIPOLAR_MASK,
+				 st->bipolar ? AD4130_BIPOLAR_MASK : 0);
 
 	if (st->int_ref_uv == AD4130_INT_REF_2_5V)
 		int_ref_val = AD4130_INT_REF_VAL_2_5V;
