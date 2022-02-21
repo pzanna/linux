@@ -1244,16 +1244,17 @@ static void ad4130_disable_regulators(void *data)
 static int ad4130_probe(struct spi_device *spi)
 {
 	const struct ad4130_chip_info *info;
+	struct device *dev = dev;
 	struct iio_dev *indio_dev;
 	struct iio_buffer *buffer;
 	struct ad4130_state *st;
 	int ret;
 
-	info = device_get_match_data(&spi->dev);
+	info = device_get_match_data(dev);
 	if (!info)
 		return -ENODEV;
 
-	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -1281,7 +1282,7 @@ static int ad4130_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ad4130_info;
 
-	st->regmap = devm_regmap_init(&spi->dev, NULL, st,
+	st->regmap = devm_regmap_init(dev, NULL, st,
 				      &ad4130_regmap_config);
 	if (IS_ERR(st->regmap))
 		return PTR_ERR(st->regmap);
@@ -1289,20 +1290,20 @@ static int ad4130_probe(struct spi_device *spi)
 	st->regulators[0].supply = "avdd";
 	st->regulators[1].supply = "iovdd";
 
-	ret = devm_regulator_bulk_get(&spi->dev, ARRAY_SIZE(st->regulators),
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(st->regulators),
 				      st->regulators);
 	if (ret)
-		return dev_err_probe(&spi->dev, ret,
+		return dev_err_probe(dev, ret,
 				     "Failed to get regulators\n");
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(st->regulators), st->regulators);
 	if (ret)
-		return dev_err_probe(&spi->dev, ret,
+		return dev_err_probe(dev, ret,
 				     "Failed to enable regulators\n");
 
-	ret = devm_add_action_or_reset(&spi->dev, ad4130_disable_regulators, st);
+	ret = devm_add_action_or_reset(dev, ad4130_disable_regulators, st);
 	if (ret)
-		return dev_err_probe(&spi->dev, ret,
+		return dev_err_probe(dev, ret,
 				     "Failed to add regulators disable action\n");
 
 	ret = ad4130_soft_reset(st);
@@ -1327,12 +1328,12 @@ static int ad4130_probe(struct spi_device *spi)
 		st->gc.get_direction = ad4130_gpio_get_direction;
 		st->gc.set = ad4130_gpio_set;
 
-		ret = devm_gpiochip_add_data(&spi->dev, &st->gc, st);
+		ret = devm_gpiochip_add_data(dev, &st->gc, st);
 		if (ret)
 			return ret;
 	}
 
-	buffer = devm_iio_kfifo_allocate(&spi->dev);
+	buffer = devm_iio_kfifo_allocate(dev);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -1341,13 +1342,13 @@ static int ad4130_probe(struct spi_device *spi)
 	indio_dev->setup_ops = &ad4130_buffer_ops;
 	iio_buffer_set_attrs(indio_dev->buffer, ad4130_fifo_attributes);
 
-	ret = devm_request_threaded_irq(&spi->dev, spi->irq, NULL,
+	ret = devm_request_threaded_irq(dev, spi->irq, NULL,
 					ad4130_irq_handler, IRQF_ONESHOT,
 					indio_dev->name, indio_dev);
 	if (ret)
-		return dev_err_probe(&spi->dev, ret, "Failed to request irq\n");
+		return dev_err_probe(dev, ret, "Failed to request irq\n");
 
-	return devm_iio_device_register(&spi->dev, indio_dev);
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static struct ad4130_chip_info ad4130_chip_info_tbl[] = {
