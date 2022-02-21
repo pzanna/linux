@@ -35,7 +35,13 @@
 #define AD4130_STATUS_POR_FLAG_MSK	BIT(4)
 
 #define AD4130_REG_ADC_CONTROL		0x01
+#define AD4130_INT_REF_VAL_MASK		BIT(13)
+#define AD4130_INT_REF_2_5V		2500000
+#define AD4130_INT_REF_1_25V		1250000
+#define AD4130_INT_REF_VAL_2_5V		0b0
+#define AD4130_INT_REF_VAL_1_25V	0b1
 #define AD4130_CSB_EN_MASK		BIT(9)
+#define AD4130_INT_REF_EN_MASK		BIT(8)
 #define AD4130_MCLK_SEL_MASK		GENMASK(1, 0)
 #define AD4130_MCLK_76_8KHZ		0x0
 #define AD4130_MCLK_76_8KHZ_OUT		0x1
@@ -222,6 +228,8 @@ struct ad4130_state {
 	unsigned int			num_gpios;
 
 	u32			int_pin_sel;
+	bool			int_ref_en;
+	u32			int_ref_uv;
 	u32			mclk_sel;
 
 	unsigned int		num_enabled_channels;
@@ -967,6 +975,19 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 	st->int_pin_sel = AD4130_INT_PIN_CLK;
 	device_property_read_u32(dev, "adi,int-pin-sel", &st->int_pin_sel);
 
+	st->int_ref_en = true;
+	if (device_property_present(dev, "adi,int-ref-en"))
+		st->int_ref_en = device_property_read_bool(dev, "adi,int-ref-en");
+
+	st->int_ref_uv = AD4130_INT_REF_2_5V;
+	device_property_read_u32(dev, "adi-int-ref-microvolt", &st->int_ref_uv);
+	if (st->int_ref_uv != AD4130_INT_REF_2_5V &&
+	    st->int_ref_uv != AD4130_INT_REF_1_25V) {
+		dev_err(dev, "Invalid internal reference voltage %u\n",
+			st->int_ref_uv);
+		return -EINVAL;
+	}
+
 	if (st->int_pin_sel > AD4130_INT_PIN_DOUT) {
 		dev_err(dev, "Invalid interrupt pin %u\n", st->int_pin_sel);
 		return -EINVAL;
@@ -1024,6 +1045,7 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	struct device *dev = &st->spi->dev;
+	unsigned int int_ref_val;
 	unsigned long rate = 0;
 	unsigned int i;
 	int ret;
@@ -1063,6 +1085,25 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 				 AD4130_INT_PIN_SEL_MASK,
 				 FIELD_PREP(AD4130_INT_PIN_SEL_MASK,
 					    st->int_pin_sel));
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(st->regmap, AD4130_REG_ADC_CONTROL,
+				 AD4130_INT_REF_EN_MASK,
+				 FIELD_PREP(AD4130_INT_REF_EN_MASK,
+					    st->int_ref_en));
+	if (ret)
+		return ret;
+
+	if (st->int_ref_uv == AD4130_INT_REF_2_5V)
+		int_ref_val = AD4130_INT_REF_VAL_2_5V;
+	else if (st->int_ref_uv == AD4130_INT_REF_1_25V)
+		int_ref_val = AD4130_INT_REF_VAL_1_25V;
+
+	ret = regmap_update_bits(st->regmap, AD4130_REG_ADC_CONTROL,
+				 AD4130_INT_REF_VAL_MASK,
+				 FIELD_PREP(AD4130_INT_REF_VAL_MASK,
+					    int_ref_val));
 	if (ret)
 		return ret;
 
