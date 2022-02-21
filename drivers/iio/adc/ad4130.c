@@ -209,6 +209,7 @@ struct ad4130_state {
 	struct spi_device		*spi;
 	struct regmap			*regmap;
 	struct clk			*mclk;
+	struct regulator_bulk_data	regulators[2];
 	struct regulator		*refin1;
 	struct regulator		*refin2;
 
@@ -1188,6 +1189,13 @@ static int ad4130_soft_reset(struct ad4130_state *st)
 	return 0;
 }
 
+static void ad4130_disable_regulators(void *data)
+{
+	struct ad4130_state *st = data;
+
+	regulator_bulk_disable(ARRAY_SIZE(st->regulators), st->regulators);
+}
+
 static int ad4130_probe(struct spi_device *spi)
 {
 	const struct ad4130_chip_info *info;
@@ -1232,6 +1240,25 @@ static int ad4130_probe(struct spi_device *spi)
 				      &ad4130_regmap_config);
 	if (IS_ERR(st->regmap))
 		return PTR_ERR(st->regmap);
+
+	st->regulators[0].supply = "avdd";
+	st->regulators[1].supply = "iovdd";
+
+	ret = devm_regulator_bulk_get(&spi->dev, ARRAY_SIZE(st->regulators),
+				      st->regulators);
+	if (ret)
+		return dev_err_probe(&spi->dev, ret,
+				     "Failed to get regulators\n");
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(st->regulators), st->regulators);
+	if (ret)
+		return dev_err_probe(&spi->dev, ret,
+				     "Failed to enable regulators\n");
+
+	ret = devm_add_action_or_reset(&spi->dev, ad4130_disable_regulators, st);
+	if (ret)
+		return dev_err_probe(&spi->dev, ret,
+				     "Failed to add regulators disable action\n");
 
 	ret = ad4130_soft_reset(st);
 	if (ret)
