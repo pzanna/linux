@@ -402,7 +402,7 @@ static int ad4130_set_channel_enable(struct ad4130_state *st,
 {
 	return regmap_update_bits(st->regmap, AD4130_REG_CHANNEL_X(channel),
 				  AD4130_CHANNEL_EN_MASK,
-				  FIELD_PREP(AD4130_CHANNEL_EN_MASK, status));
+				  status ? AD4130_CHANNEL_EN_MASK : 0);
 }
 
 static int ad4130_set_watermark_interrupt_en(struct ad4130_state *st, bool en)
@@ -1133,8 +1133,7 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 
 	ret = regmap_update_bits(st->regmap, AD4130_REG_ADC_CONTROL,
 				 AD4130_INT_REF_EN_MASK,
-				 FIELD_PREP(AD4130_INT_REF_EN_MASK,
-					    st->int_ref_en));
+				 st->int_ref_en ? AD4130_INT_REF_EN_MASK : 0);
 	if (ret)
 		return ret;
 
