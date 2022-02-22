@@ -954,8 +954,7 @@ static int ad4130_parse_fw_setup(struct iio_dev *indio_dev,
 	}
 
 	if (setup_info->ref_uv < 0) {
-		dev_err(dev, "Invalid reference voltage: %d\n",
-			setup_info->ref_uv);
+		dev_err(dev, "Invalid reference voltage: %d\n", setup_info->ref_uv);
 		return setup_info->ref_uv;
 	}
 
