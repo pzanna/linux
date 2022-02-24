@@ -581,7 +581,7 @@ static int ad4130_read_avail(struct iio_dev *indio_dev,
 			     long info)
 {
 
-	switch (mask) {
+	switch (info) {
 	default:
 		return -EINVAL;
 	}
