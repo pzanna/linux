@@ -90,6 +90,7 @@
 #define AD4130_REF_BUFP_MASK		BIT(7)
 #define AD4130_REF_BUFM_MASK		BIT(6)
 #define AD4130_REF_SEL_MASK		GENMASK(5, 4)
+#define AD4130_PGA_NUM			8
 
 #define AD4130_REG_FIFO_CONTROL		0x3a
 #define AD4130_ADD_FIFO_HEADER_MASK	BIT(18)
@@ -228,6 +229,8 @@ struct ad4130_state {
 	struct ad4130_chan_info		chans_info[AD4130_MAX_CHANNELS];
 	struct ad4130_setup_info	setups_info[AD4130_MAX_SETUPS];
 	enum ad4130_pin_function	pins_fn[AD4130_MAX_ANALOG_PINS];
+	int				scale_tbls[AD4130_REF_SEL_MAX]
+						  [AD4130_PGA_NUM][2];
 	struct gpio_chip		gc;
 	unsigned int			gpio_offsets[AD4130_MAX_GPIOS];
 	unsigned int			num_gpios;
@@ -558,12 +561,11 @@ static int ad4130_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		mutex_lock(&st->lock);
 		setup_info = &st->setups_info[chan_info->setup];
-		*val = setup_info->ref_uv / 1000;
-		*val2 = chan->scan_type.realbits + setup_info->pga +
-			st->bipolar ? -1 : 0;
+		*val = st->scale_tbls[setup_info->ref_sel][setup_info->pga][0];
+		*val2 = st->scale_tbls[setup_info->ref_sel][setup_info->pga][1];
 		mutex_unlock(&st->lock);
 
-		return IIO_VAL_FRACTIONAL_LOG2;
+		return IIO_VAL_INT_PLUS_NANO;
 	case IIO_CHAN_INFO_OFFSET:
 		mutex_lock(&st->lock);
 		setup_info = &st->setups_info[chan_info->setup];
@@ -1141,6 +1143,31 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 	return 0;
 }
 
+static int ad4130_fill_scale_tbls(struct ad4130_state *st)
+{
+	unsigned int i, j;
+
+	for (i = 0; i < AD4130_REF_SEL_MAX; i++) {
+		unsigned int ref_uv;
+		int ret;
+
+		ret = ad4130_get_ref_voltage(st, i, &ref_uv);
+		if (ret)
+			continue;
+
+		for (j = 0; j < AD4130_PGA_NUM; j++) {
+			unsigned int pow = st->chip_info->resolution + j -
+					   st->bipolar;
+			unsigned int nv = div_u64(((ref_uv * 1000000000ull) >>
+						   pow), 1000);
+			st->scale_tbls[i][j][0] = 0;
+			st->scale_tbls[i][j][1] = nv;
+		}
+	}
+
+	return 0;
+}
+
 static void ad4130_clk_disable_unprepare(void *clk)
 {
 	clk_disable_unprepare(clk);
@@ -1359,6 +1386,10 @@ static int ad4130_probe(struct spi_device *spi)
 		return ret;
 
 	ret = ad4130_setup(indio_dev);
+	if (ret)
+		return ret;
+
+	ret = ad4130_fill_scale_tbls(st);
 	if (ret)
 		return ret;
 
