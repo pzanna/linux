@@ -603,8 +603,8 @@ static int ad4130_update_scan_mode(struct iio_dev *indio_dev,
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	unsigned int val = 0;
+	unsigned int i;
 	int ret;
-	int i;
 
 	for (i = 0; i < indio_dev->num_channels; i++) {
 		ret = ad4130_set_channel_enable(st, i, test_bit(i, scan_mask));
@@ -874,7 +874,7 @@ static int ad4130_validate_excitation_current(struct ad4130_state *st,
 					      u32 current_na)
 {
 	struct device *dev = &st->spi->dev;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(ad4130_iout_current_na_tbl); i++)
 		if (ad4130_iout_current_na_tbl[i] == current_na) {
@@ -892,7 +892,7 @@ static int ad4130_validate_burnout_current(struct ad4130_state *st,
 					   u32 current_na)
 {
 	struct device *dev = &st->spi->dev;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(ad4130_burnout_current_na_tbl); i++)
 		if (ad4130_burnout_current_na_tbl[i] == current_na) {
@@ -1031,9 +1031,9 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	struct device *dev = &st->spi->dev;
+	unsigned int i;
 	int avdd_uv;
 	int ret;
-	int i;
 
 	st->mclk = devm_clk_get_optional(dev, "mclk");
 	if (IS_ERR(st->mclk))
