@@ -548,7 +548,7 @@ static int ad4130_read_raw(struct iio_dev *indio_dev,
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	unsigned int channel = chan->scan_index;
-	struct ad4130_chan_info *chan_chan_info = &st->chans_info[channel];
+	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
 	struct ad4130_setup_info *setup_info;
 
 	switch (info) {
