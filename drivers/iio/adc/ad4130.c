@@ -200,6 +200,7 @@ struct ad4130_setup_info {
 	unsigned int	iout0_val;
 	unsigned int	iout1_val;
 	unsigned int	burnout;
+	unsigned int	pga;
 	bool		ref_bufp;
 	bool		ref_bufm;
 	u32		ref_sel;
@@ -545,9 +546,26 @@ static int ad4130_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val, int *val2, long info)
 {
+	struct ad4130_state *st = iio_priv(indio_dev);
+	struct ad4130_setup_info *setup_info;
+	struct ad4130_chan_info *chan_info;
+	unsigned int channel;
+
 	switch (info) {
 	case IIO_CHAN_INFO_RAW:
 		return ad4130_read_sample(indio_dev, chan, val);
+	case IIO_CHAN_INFO_SCALE:
+		channel = chan->scan_index;
+		chan_info = &st->chans_info[channel];
+
+		mutex_lock(&st->lock);
+		setup_info = &st->setups_info[chan_info->setup];
+		*val = setup_info->ref_uv / 1000;
+		*val2 = chan->scan_type.realbits + setup_info->pga +
+			st->bipolar ? -1 : 0;
+		mutex_unlock(&st->lock);
+
+		return IIO_VAL_FRACTIONAL_LOG2;
 	default:
 		return -EINVAL;
 	}
