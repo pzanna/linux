@@ -571,6 +571,18 @@ static int ad4130_read_raw(struct iio_dev *indio_dev,
 	}
 }
 
+static int ad4130_read_avail(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan,
+			     const int **vals, int *type, int *length,
+			     long info)
+{
+
+	switch (mask) {
+	default:
+		return -EINVAL;
+	}
+}
+
 static int ad4130_reg_access(struct iio_dev *indio_dev, unsigned int reg,
 			     unsigned int writeval, unsigned int *readval)
 {
@@ -627,6 +639,7 @@ static int ad4130_set_fifo_watermark(struct iio_dev *indio_dev,
 
 static const struct iio_info ad4130_info = {
 	.read_raw = ad4130_read_raw,
+	.read_avail = ad4130_read_avail,
 	.update_scan_mode = ad4130_update_scan_mode,
 	.hwfifo_set_watermark = ad4130_set_fifo_watermark,
 	.debugfs_reg_access = ad4130_reg_access,
