@@ -87,9 +87,9 @@
 #define AD4130_BURNOUT_500NA		0x1
 #define AD4130_BURNOUT_2000NA		0x2
 #define AD4130_BURNOUT_4000NA		0x3
-#define AD4130_REF_BUFP			BIT(7)
-#define AD4130_REF_BUFM			BIT(6)
-#define AD4130_REF_SEL			GENMASK(5, 4)
+#define AD4130_REF_BUFP_MASK		BIT(7)
+#define AD4130_REF_BUFM_MASK		BIT(6)
+#define AD4130_REF_SEL_MASK		GENMASK(5, 4)
 
 #define AD4130_REG_FIFO_CONTROL		0x3a
 #define AD4130_ADD_FIFO_HEADER_MASK	BIT(18)
@@ -1189,9 +1189,9 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 		val = FIELD_PREP(AD4130_IOUT1_VAL_MASK, setup_info->iout0_val) |
 		      FIELD_PREP(AD4130_IOUT1_VAL_MASK, setup_info->iout1_val) |
 		      FIELD_PREP(AD4130_BURNOUT_MASK, setup_info->burnout) |
-		      FIELD_PREP(AD4130_REF_BUFP, setup_info->ref_bufp) |
-		      FIELD_PREP(AD4130_REF_BUFM, setup_info->ref_bufm) |
-		      FIELD_PREP(AD4130_REF_SEL, setup_info->ref_sel);
+		      FIELD_PREP(AD4130_REF_BUFP_MASK, setup_info->ref_bufp) |
+		      FIELD_PREP(AD4130_REF_BUFM_MASK, setup_info->ref_bufm) |
+		      FIELD_PREP(AD4130_REF_SEL_MASK, setup_info->ref_sel);
 
 		ret = regmap_write(st->regmap, AD4130_REG_CONFIG_X(i), val);
 		if (ret)
