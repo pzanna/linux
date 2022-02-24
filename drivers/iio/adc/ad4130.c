@@ -906,6 +906,56 @@ static int ad4130_validate_burnout_current(struct ad4130_state *st,
 	return -EINVAL;
 }
 
+static int ad4130_get_ref_voltage(struct ad4130_state *st,
+				  enum ad4130_ref_sel ref_sel,
+				  unsigned int *ref_uv)
+{
+	struct device *dev = &st->spi->dev;
+	int ret;
+
+	switch (ref_sel) {
+	case AD4130_REF_REFIN1:
+		if (!st->refin1) {
+			dev_err(dev, "Cannot use refin1 without supply\n");
+			return -EINVAL;
+		}
+
+		ret = regulator_get_voltage(st->refin1);
+		break;
+	case AD4130_REF_REFIN2:
+		if (!st->refin2) {
+			dev_err(dev, "Cannot use refin2 without supply\n");
+			return -EINVAL;
+		}
+
+		ret = regulator_get_voltage(st->refin2);
+		break;
+	case AD4130_REF_REFOUT_AVSS:
+		if (!st->int_ref_en) {
+			dev_err(dev, "Cannot use internal reference\n");
+			return -EINVAL;
+		}
+
+		ret = st->int_ref_uv;
+		break;
+	case AD4130_REF_AVDD_AVSS:
+		ret = regulator_get_voltage(st->regulators[0].consumer);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	if (ret <= 0) {
+		dev_err(dev, "Invalid reference voltage: %d\n", ret);
+		return ret;
+	}
+
+	*ref_uv = ret;
+
+	return 0;
+}
+
 static int ad4130_parse_fw_setup(struct iio_dev *indio_dev,
 				 struct fwnode_handle *child)
 {
@@ -959,40 +1009,10 @@ static int ad4130_parse_fw_setup(struct iio_dev *indio_dev,
 		return -EINVAL;
 	}
 
-	switch (setup_info->ref_sel) {
-	case AD4130_REF_REFIN1:
-		if (!st->refin1) {
-			dev_err(dev, "Cannot use refin1 without supply\n");
-			return -EINVAL;
-		}
-
-		setup_info->ref_uv = regulator_get_voltage(st->refin1);
-		break;
-	case AD4130_REF_REFIN2:
-		if (!st->refin2) {
-			dev_err(dev, "Cannot use refin2 without supply\n");
-			return -EINVAL;
-		}
-
-		setup_info->ref_uv = regulator_get_voltage(st->refin2);
-		break;
-	case AD4130_REF_REFOUT_AVSS:
-		if (!st->int_ref_en) {
-			dev_err(dev, "Cannot use internal reference\n");
-			return -EINVAL;
-		}
-
-		setup_info->ref_uv = st->int_ref_uv;
-		break;
-	case AD4130_REF_AVDD_AVSS:
-		setup_info->ref_uv = regulator_get_voltage(st->regulators[0].consumer);
-		break;
-	}
-
-	if (setup_info->ref_uv <= 0) {
-		dev_err(dev, "Invalid reference voltage: %d\n", setup_info->ref_uv);
-		return setup_info->ref_uv;
-	}
+	ret = ad4130_get_ref_voltage(st, setup_info->ref_sel,
+				     &setup_info->ref_uv);
+	if (ret)
+		return ret;
 
 	return 0;
 }
