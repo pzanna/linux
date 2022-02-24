@@ -166,6 +166,7 @@ enum ad4130_ref_sel {
 	AD4130_REF_REFIN2,
 	AD4130_REF_REFOUT_AVSS,
 	AD4130_REF_AVDD_AVSS,
+	AD4130_REF_SEL_MAX,
 };
 
 enum ad4130_fifo_mode {
@@ -952,7 +953,7 @@ static int ad4130_parse_fw_setup(struct iio_dev *indio_dev,
 	setup_info->ref_sel = AD4130_REF_REFOUT_AVSS;
 	fwnode_property_read_u32(child, "adi,reference-select",
 				 &setup_info->ref_sel);
-	if (setup_info->ref_sel > AD4130_REF_AVDD_AVSS) {
+	if (setup_info->ref_sel >= AD4130_REF_SEL_MAX) {
 		dev_err(dev, "Invalid reference selected %u\n",
 			setup_info->ref_sel);
 		return -EINVAL;
