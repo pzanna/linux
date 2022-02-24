@@ -547,17 +547,14 @@ static int ad4130_read_raw(struct iio_dev *indio_dev,
 			   int *val, int *val2, long info)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
+	unsigned int channel = chan->scan_index;
+	struct ad4130_chan_info *chan_chan_info = &st->chans_info[channel];
 	struct ad4130_setup_info *setup_info;
-	struct ad4130_chan_info *chan_info;
-	unsigned int channel;
 
 	switch (info) {
 	case IIO_CHAN_INFO_RAW:
 		return ad4130_read_sample(indio_dev, chan, val);
 	case IIO_CHAN_INFO_SCALE:
-		channel = chan->scan_index;
-		chan_info = &st->chans_info[channel];
-
 		mutex_lock(&st->lock);
 		setup_info = &st->setups_info[chan_info->setup];
 		*val = setup_info->ref_uv / 1000;
@@ -566,6 +563,13 @@ static int ad4130_read_raw(struct iio_dev *indio_dev,
 		mutex_unlock(&st->lock);
 
 		return IIO_VAL_FRACTIONAL_LOG2;
+	case IIO_CHAN_INFO_OFFSET:
+		mutex_lock(&st->lock);
+		setup_info = &st->setups_info[chan_info->setup];
+		*val = st->bipolar ? -(1 << (chan->scan_type.realbits - 1)) : 0;
+		mutex_unlock(&st->lock);
+
+		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
 	}
