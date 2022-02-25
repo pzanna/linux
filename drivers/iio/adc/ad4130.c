@@ -90,6 +90,7 @@
 #define AD4130_REF_BUFP_MASK		BIT(7)
 #define AD4130_REF_BUFM_MASK		BIT(6)
 #define AD4130_REF_SEL_MASK		GENMASK(5, 4)
+#define AD4130_PGA_MASK			GENMASK(3, 1)
 #define AD4130_PGA_NUM			8
 
 #define AD4130_REG_FIFO_CONTROL		0x3a
@@ -490,6 +491,48 @@ static irqreturn_t ad4130_irq_handler(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
+static int ad4130_set_channel_pga(struct iio_dev *indio_dev,
+				  unsigned int channel, int val, int val2)
+{
+	struct ad4130_state *st = iio_priv(indio_dev);
+	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
+	struct ad4130_setup_info *setup_info;
+	unsigned int i;
+	int ret;
+
+	ret = iio_device_claim_direct_mode(indio_dev);
+	if (ret)
+		return ret;
+
+	mutex_lock(&st->lock);
+ 	setup_info = &st->setups_info[chan_info->setup];
+
+	for (i = 0; i < AD4130_PGA_NUM; i++)
+		if (val == st->scale_tbls[setup_info->ref_sel][i][0] &&
+		    val2 == st->scale_tbls[setup_info->ref_sel][i][1])
+			break;
+
+	if (i == AD4130_PGA_NUM) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	ret = regmap_update_bits(st->regmap, AD4130_REG_CONFIG_X(channel),
+				 AD4130_PGA_MASK,
+				 FIELD_PREP(AD4130_PGA_MASK, i));
+	if (ret)
+		goto exit;
+
+	setup_info->pga = i;
+
+exit:
+	mutex_unlock(&st->lock);
+
+	iio_device_release_direct_mode(indio_dev);
+
+	return ret;
+}
+
 static int _ad4130_read_sample(struct ad4130_state *st,
 			       struct iio_chan_spec const *chan,
 			       int *val)
@@ -612,6 +655,19 @@ static int ad4130_write_raw_get_fmt(struct iio_dev *indio_dev,
 	}
 }
 
+static int ad4130_write_raw(struct iio_dev *indio_dev,
+			    struct iio_chan_spec const *chan,
+			    int val, int val2, long info)
+{
+	switch (info) {
+	case IIO_CHAN_INFO_SCALE:
+		return ad4130_set_channel_pga(indio_dev, chan->scan_index, val,
+					      val2);
+	default:
+		return -EINVAL;
+	}
+}
+
 static int ad4130_reg_access(struct iio_dev *indio_dev, unsigned int reg,
 			     unsigned int writeval, unsigned int *readval)
 {
@@ -670,6 +726,7 @@ static const struct iio_info ad4130_info = {
 	.read_raw = ad4130_read_raw,
 	.read_avail = ad4130_read_avail,
 	.write_raw_get_fmt = ad4130_write_raw_get_fmt,
+	.write_raw = ad4130_write_raw,
 	.update_scan_mode = ad4130_update_scan_mode,
 	.hwfifo_set_watermark = ad4130_set_fifo_watermark,
 	.debugfs_reg_access = ad4130_reg_access,
