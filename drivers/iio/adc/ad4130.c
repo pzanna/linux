@@ -207,7 +207,6 @@ struct ad4130_setup_info {
 	bool		ref_bufp;
 	bool		ref_bufm;
 	u32		ref_sel;
-	u32		ref_uv;
 };
 
 struct ad4130_state {
@@ -1090,11 +1089,6 @@ static int ad4130_parse_fw_setup(struct iio_dev *indio_dev,
 			setup_info->ref_sel);
 		return -EINVAL;
 	}
-
-	ret = ad4130_get_ref_voltage(st, setup_info->ref_sel,
-				     &setup_info->ref_uv);
-	if (ret)
-		return ret;
 
 	return 0;
 }
