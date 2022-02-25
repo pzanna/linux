@@ -583,8 +583,20 @@ static int ad4130_read_avail(struct iio_dev *indio_dev,
 			     const int **vals, int *type, int *length,
 			     long info)
 {
+	struct ad4130_state *st = iio_priv(indio_dev);
+	unsigned int channel = chan->scan_index;
+	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
+	struct ad4130_setup_info *setup_info;
 
 	switch (info) {
+	case IIO_CHAN_INFO_SCALE:
+		mutex_lock(&st->lock);
+		setup_info = &st->setups_info[chan_info->setup];
+		*vals = (int *)st->scale_tbls[setup_info->ref_sel];
+		*length = ARRAY_SIZE(st->scale_tbls[setup_info->ref_sel]) * 2;
+		mutex_unlock(&st->lock);
+		*type = IIO_VAL_INT_PLUS_NANO;
+		return IIO_AVAIL_LIST;
 	default:
 		return -EINVAL;
 	}
