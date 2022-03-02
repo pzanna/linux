@@ -265,7 +265,9 @@ static const struct iio_chan_spec ad4130_channel_template = {
 	.type = IIO_VOLTAGE,
 	.indexed = 1,
 	.differential = 1,
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			      BIT(IIO_CHAN_INFO_SCALE) |
+			      BIT(IIO_CHAN_INFO_OFFSET),
 	.scan_type = {
 		.sign = 'u',
 		.endianness = IIO_BE,
