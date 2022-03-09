@@ -233,14 +233,8 @@ struct ad4130_setup_info {
 	enum ad4130_filter_mode		filter_mode;
 };
 
-enum ad4130_filter_odr_type {
-	AD4130_FILTER_ODR_VARIABLE,
-	AD4130_FILTER_ODR_FIXED,
-};
-
 struct ad4130_filter_config {
 	enum ad4130_filter_mode		filter_mode;
-	enum ad4130_filter_odr_type	odr_type;
 	unsigned int			odr_div;
 	unsigned int			fs_max;
 	unsigned int			db3_div;
@@ -304,7 +298,6 @@ struct ad4130_state {
 #define AD4130_VARIABLE_ODR_CONFIG(_filter_mode, _odr_div, _fs_max, _db3_div)	\
 {										\
 		.filter_mode = (_filter_mode),					\
-		.odr_type = AD4130_FILTER_ODR_VARIABLE,				\
 		.odr_div = (_odr_div),						\
 		.fs_max = (_fs_max),						\
 		.db3_div = (_db3_div),						\
@@ -320,7 +313,6 @@ struct ad4130_state {
 #define AD4130_FIXED_ODR_CONFIG(_filter_mode, _odr_div, _db3_div)	\
 {									\
 		.filter_mode = (_filter_mode),				\
-		.odr_type = AD4130_FILTER_ODR_FIXED,			\
 		.odr_div = (_odr_div),					\
 		.db3_div = (_db3_div),					\
 		.samp_freq_avail_type = IIO_AVAIL_LIST,			\
