@@ -308,6 +308,9 @@ static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
 	mutex_lock(&st->lock);
 	setup_info = &st->setups_info[chan_info->setup];
 
+	if (setup_info->filter_mode == val)
+		goto exit;
+
 	ret = regmap_update_bits(st->regmap, AD4130_REG_FILTER_X(channel),
 				 AD4130_FILTER_MODE_MASK,
 				 FIELD_PREP(AD4130_FILTER_MODE_MASK, val));
