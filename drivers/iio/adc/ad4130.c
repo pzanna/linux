@@ -563,10 +563,6 @@ static int ad4130_set_channel_pga(struct iio_dev *indio_dev,
 	unsigned int i;
 	int ret;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
-
 	mutex_lock(&st->lock);
  	setup_info = &st->setups_info[chan_info->setup];
 
@@ -590,8 +586,6 @@ static int ad4130_set_channel_pga(struct iio_dev *indio_dev,
 
 exit:
 	mutex_unlock(&st->lock);
-
-	iio_device_release_direct_mode(indio_dev);
 
 	return ret;
 }
