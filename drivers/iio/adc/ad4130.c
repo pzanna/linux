@@ -296,18 +296,24 @@ static const char * const ad4130_filter_modes_str[] = {
 	[AD4130_FILTER_SINC3_PF4] = "sinc3+pf4",
 };
 
+static struct ad4130_setup_info *
+_ad4130_get_channel_setup(struct ad4130_state *st, unsigned int channel)
+{
+	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
+	return &st->setups_info[chan_info->setup];
+}
+
 static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
 				  const struct iio_chan_spec *chan,
 				  unsigned int val)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	unsigned int channel = chan->scan_index;
-	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
 	struct ad4130_setup_info *setup_info;
 	int ret;
 
 	mutex_lock(&st->lock);
-	setup_info = &st->setups_info[chan_info->setup];
+	setup_info = _ad4130_get_channel_setup(st, channel);
 
 	if (setup_info->filter_mode == val)
 		goto exit;
@@ -331,12 +337,11 @@ static int ad4130_get_filter_mode(struct iio_dev *indio_dev,
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	unsigned int channel = chan->scan_index;
-	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
 	struct ad4130_setup_info *setup_info;
 	enum ad4130_filter_mode filter_mode;
 
 	mutex_lock(&st->lock);
-	setup_info = &st->setups_info[chan_info->setup];
+	setup_info = _ad4130_get_channel_setup(st, channel);
 	filter_mode = setup_info->filter_mode;
 	mutex_unlock(&st->lock);
 
@@ -594,13 +599,12 @@ static int ad4130_set_channel_pga(struct iio_dev *indio_dev,
 				  unsigned int channel, int val, int val2)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
-	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
 	struct ad4130_setup_info *setup_info;
 	unsigned int i;
 	int ret;
 
 	mutex_lock(&st->lock);
- 	setup_info = &st->setups_info[chan_info->setup];
+	setup_info = _ad4130_get_channel_setup(st, channel);
 
 	for (i = 0; i < AD4130_PGA_NUM; i++)
 		if (val == st->scale_tbls[setup_info->ref_sel][i][0] &&
@@ -686,7 +690,6 @@ static int ad4130_read_raw(struct iio_dev *indio_dev,
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	unsigned int channel = chan->scan_index;
-	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
 	struct ad4130_setup_info *setup_info;
 
 	switch (info) {
@@ -694,7 +697,7 @@ static int ad4130_read_raw(struct iio_dev *indio_dev,
 		return ad4130_read_sample(indio_dev, channel, val);
 	case IIO_CHAN_INFO_SCALE:
 		mutex_lock(&st->lock);
-		setup_info = &st->setups_info[chan_info->setup];
+		setup_info = _ad4130_get_channel_setup(st, channel);
 		*val = st->scale_tbls[setup_info->ref_sel][setup_info->pga][0];
 		*val2 = st->scale_tbls[setup_info->ref_sel][setup_info->pga][1];
 		mutex_unlock(&st->lock);
@@ -702,7 +705,6 @@ static int ad4130_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT_PLUS_NANO;
 	case IIO_CHAN_INFO_OFFSET:
 		mutex_lock(&st->lock);
-		setup_info = &st->setups_info[chan_info->setup];
 		*val = st->bipolar ? -(1 << (chan->scan_type.realbits - 1)) : 0;
 		mutex_unlock(&st->lock);
 
@@ -719,13 +721,12 @@ static int ad4130_read_avail(struct iio_dev *indio_dev,
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	unsigned int channel = chan->scan_index;
-	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
 	struct ad4130_setup_info *setup_info;
 
 	switch (info) {
 	case IIO_CHAN_INFO_SCALE:
 		mutex_lock(&st->lock);
-		setup_info = &st->setups_info[chan_info->setup];
+		setup_info = _ad4130_get_channel_setup(st, channel);
 		*vals = (int *)st->scale_tbls[setup_info->ref_sel];
 		*length = ARRAY_SIZE(st->scale_tbls[setup_info->ref_sel]) * 2;
 		mutex_unlock(&st->lock);
