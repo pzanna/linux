@@ -96,6 +96,7 @@
 #define AD4130_REG_FILTER_X(x)		(0x21 + (x))
 #define AD4130_FILTER_MODE_MASK		GENMASK(15, 12)
 #define AD4130_FILTER_SELECT_MASK	GENMASK(10, 0)
+#define AD4130_MAX_ODR			2400
 
 #define AD4130_REG_FIFO_CONTROL		0x3a
 #define AD4130_ADD_FIFO_HEADER_MASK	BIT(18)
@@ -304,9 +305,9 @@ struct ad4130_state {
 		.samp_freq_avail_type = IIO_AVAIL_RANGE,			\
 		.samp_freq_avail_len = 3 * 2,					\
 		.samp_freq_avail = {						\
-			{ 2400, (_odr_div) * (_fs_max) },			\
-			{ 2400, (_odr_div) * (_fs_max) },			\
-			{ 2400, (_odr_div) },					\
+			{ AD4130_MAX_ODR, (_odr_div) * (_fs_max) },		\
+			{ AD4130_MAX_ODR, (_odr_div) * (_fs_max) },		\
+			{ AD4130_MAX_ODR, (_odr_div) },				\
 		},								\
 }
 
@@ -318,7 +319,7 @@ struct ad4130_state {
 		.samp_freq_avail_type = IIO_AVAIL_LIST,			\
 		.samp_freq_avail_len = 1 * 2,				\
 		.samp_freq_avail = {					\
-			{ 2400, (_odr_div) },				\
+			{ AD4130_MAX_ODR, (_odr_div) },			\
 		},							\
 }
 
