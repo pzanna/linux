@@ -239,8 +239,8 @@ struct ad4130_filter_config {
 	unsigned int			fs_max;
 	unsigned int			db3_div;
 	enum iio_available_type		samp_freq_avail_type;
-	unsigned int			samp_freq_avail[3][2];
-	unsigned int			samp_freq_avail_len;
+	int				samp_freq_avail_len;
+	int				samp_freq_avail[3][2];
 };
 
 struct ad4130_state {
