@@ -618,11 +618,9 @@ static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static int ad4130_get_filter_mode(struct iio_dev *indio_dev,
-				  const struct iio_chan_spec *chan)
+static enum ad4130_filter_mode
+_ad4130_get_filter_mode(struct ad4130_state *st, unsigned int channel)
 {
-	struct ad4130_state *st = iio_priv(indio_dev);
-	unsigned int channel = chan->scan_index;
 	struct ad4130_setup_info *setup_info;
 	enum ad4130_filter_mode filter_mode;
 
@@ -632,6 +630,15 @@ static int ad4130_get_filter_mode(struct iio_dev *indio_dev,
 	mutex_unlock(&st->lock);
 
 	return filter_mode;
+}
+
+static int ad4130_get_filter_mode(struct iio_dev *indio_dev,
+				  const struct iio_chan_spec *chan)
+{
+	struct ad4130_state *st = iio_priv(indio_dev);
+	unsigned int channel = chan->scan_index;
+
+	return _ad4130_get_filter_mode(st, channel);
 }
 
 static const struct iio_enum ad4130_filter_mode_enum = {
