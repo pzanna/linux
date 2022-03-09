@@ -220,13 +220,14 @@ struct ad4130_chan_info {
 };
 
 struct ad4130_setup_info {
-	unsigned int	iout0_val;
-	unsigned int	iout1_val;
-	unsigned int	burnout;
-	unsigned int	pga;
-	bool		ref_bufp;
-	bool		ref_bufm;
-	u32		ref_sel;
+	unsigned int			iout0_val;
+	unsigned int			iout1_val;
+	unsigned int			burnout;
+	unsigned int			pga;
+	bool				ref_bufp;
+	bool				ref_bufm;
+	u32				ref_sel;
+	enum ad4130_filter_mode		filter_mode;
 };
 
 struct ad4130_state {
