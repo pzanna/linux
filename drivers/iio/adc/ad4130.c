@@ -189,6 +189,19 @@ enum ad4130_mode {
 	AD4130_MODE_IDLE = 0b0100,
 };
 
+enum ad4130_filter_mode {
+	AD4130_FILTER_SINC4,
+	AD4130_FILTER_SINC4_SINC1,
+	AD4130_FILTER_SINC3,
+	AD4130_FILTER_SINC3_REJ60,
+	AD4130_FILTER_SINC3_SINC1,
+	AD4130_FILTER_SINC3_PF1,
+	AD4130_FILTER_SINC3_PF2,
+	AD4130_FILTER_SINC3_PF3,
+	AD4130_FILTER_SINC3_PF4,
+	AD4130_FILTER_MAX,
+};
+
 enum ad4130_pin_function {
 	AD4130_PIN_FN_NONE,
 	AD4130_PIN_FN_SPECIAL,
@@ -268,6 +281,44 @@ struct ad4130_state {
 					    AD4130_FIFO_MAX_SAMPLE_SIZE];
 };
 
+static const char * const ad4130_filter_modes_str[] = {
+	[AD4130_FILTER_SINC4] = "sinc4",
+	[AD4130_FILTER_SINC4_SINC1] = "sinc4+sinc1",
+	[AD4130_FILTER_SINC3] = "sinc3",
+	[AD4130_FILTER_SINC3_REJ60] = "sinc3+rej60",
+	[AD4130_FILTER_SINC3_SINC1] = "sinc3+sinc1",
+	[AD4130_FILTER_SINC3_PF1] = "sinc3+pf1",
+	[AD4130_FILTER_SINC3_PF2] = "sinc3+pf2",
+	[AD4130_FILTER_SINC3_PF3] = "sinc3+pf3",
+	[AD4130_FILTER_SINC3_PF4] = "sinc3+pf4",
+};
+
+static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
+				  const struct iio_chan_spec *chan,
+				  unsigned int val)
+{
+	return 0;
+}
+
+static int ad4130_get_filter_mode(struct iio_dev *indio_dev,
+				  const struct iio_chan_spec *chan)
+{
+	return 0;
+}
+
+static const struct iio_enum ad4130_filter_mode_enum = {
+	.items = ad4130_filter_modes_str,
+	.num_items = ARRAY_SIZE(ad4130_filter_modes_str),
+	.set = ad4130_set_filter_mode,
+	.get = ad4130_get_filter_mode
+};
+
+static const struct iio_chan_spec_ext_info ad4130_filter_mode_ext_info[] = {
+	IIO_ENUM("filter_mode", IIO_SEPARATE, &ad4130_filter_mode_enum),
+	IIO_ENUM_AVAILABLE("filter_mode", &ad4130_filter_mode_enum),
+	{ },
+};
+
 static const struct iio_chan_spec ad4130_channel_template = {
 	.type = IIO_VOLTAGE,
 	.indexed = 1,
@@ -275,6 +326,7 @@ static const struct iio_chan_spec ad4130_channel_template = {
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 			      BIT(IIO_CHAN_INFO_SCALE) |
 			      BIT(IIO_CHAN_INFO_OFFSET),
+	.ext_info = ad4130_filter_mode_ext_info,
 	.scan_type = {
 		.sign = 'u',
 		.endianness = IIO_BE,
