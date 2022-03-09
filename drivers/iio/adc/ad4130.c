@@ -326,7 +326,8 @@ static int ad4130_get_filter_mode(struct iio_dev *indio_dev,
 				  const struct iio_chan_spec *chan)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
-	struct ad4130_chan_info *chan_info = &st->chans_info[chan->scan_index];
+	unsigned int channel = chan->scan_index;
+	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
 	struct ad4130_setup_info *setup_info;
 	enum ad4130_filter_mode filter_mode;
 
@@ -621,15 +622,14 @@ exit:
 	return ret;
 }
 
-static int _ad4130_read_sample(struct ad4130_state *st,
-			       struct iio_chan_spec const *chan,
+static int _ad4130_read_sample(struct ad4130_state *st, unsigned int channel,
 			       int *val)
 {
 	int ret;
 
 	reinit_completion(&st->completion);
 
-	ret = ad4130_set_channel_enable(st, chan->scan_index, true);
+	ret = ad4130_set_channel_enable(st, channel, true);
 	if (ret)
 		return ret;
 
@@ -650,15 +650,14 @@ static int _ad4130_read_sample(struct ad4130_state *st,
 	if (ret)
 		return ret;
 
-	ret = ad4130_set_channel_enable(st, chan->scan_index, false);
+	ret = ad4130_set_channel_enable(st, channel, false);
 	if (ret)
 		return ret;
 
 	return IIO_VAL_INT;
 }
 
-static int ad4130_read_sample(struct iio_dev *indio_dev,
-			      struct iio_chan_spec const *chan,
+static int ad4130_read_sample(struct iio_dev *indio_dev, unsigned int channel,
 			      int *val)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
@@ -669,7 +668,7 @@ static int ad4130_read_sample(struct iio_dev *indio_dev,
 		return ret;
 
 	mutex_lock(&st->lock);
-	ret = _ad4130_read_sample(st, chan, val);
+	ret = _ad4130_read_sample(st, channel, val);
 	mutex_unlock(&st->lock);
 
 	iio_device_release_direct_mode(indio_dev);
@@ -682,12 +681,13 @@ static int ad4130_read_raw(struct iio_dev *indio_dev,
 			   int *val, int *val2, long info)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
-	struct ad4130_chan_info *chan_info = &st->chans_info[chan->scan_index];
+	unsigned int channel = chan->scan_index;
+	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
 	struct ad4130_setup_info *setup_info;
 
 	switch (info) {
 	case IIO_CHAN_INFO_RAW:
-		return ad4130_read_sample(indio_dev, chan, val);
+		return ad4130_read_sample(indio_dev, channel, val);
 	case IIO_CHAN_INFO_SCALE:
 		mutex_lock(&st->lock);
 		setup_info = &st->setups_info[chan_info->setup];
@@ -714,7 +714,8 @@ static int ad4130_read_avail(struct iio_dev *indio_dev,
 			     long info)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
-	struct ad4130_chan_info *chan_info = &st->chans_info[chan->scan_index];
+	unsigned int channel = chan->scan_index;
+	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
 	struct ad4130_setup_info *setup_info;
 
 	switch (info) {
