@@ -798,6 +798,7 @@ static int ad4130_read_avail(struct iio_dev *indio_dev,
 	unsigned int channel = chan->scan_index;
 	const struct ad4130_filter_config *filter_config;
 	struct ad4130_setup_info *setup_info;
+	enum ad4130_filter_mode filter_mode;
 	int ret;
 
 	switch (info) {
@@ -810,13 +811,11 @@ static int ad4130_read_avail(struct iio_dev *indio_dev,
 		*type = IIO_VAL_INT_PLUS_NANO;
 		return IIO_AVAIL_LIST;
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		mutex_lock(&st->lock);
-		setup_info = _ad4130_get_channel_setup(st, channel);
-		filter_config = &ad4130_filter_configs[setup_info->filter_mode];
+		filter_mode = _ad4130_get_filter_mode(st, channel);
+		filter_config = &ad4130_filter_configs[filter_mode];
 		*vals = (int *)filter_config->samp_freq_avail;
 		*length = filter_config->samp_freq_avail_len * 2;
 		ret = filter_config->samp_freq_avail_type;
-		mutex_unlock(&st->lock);
 		*type = IIO_VAL_FRACTIONAL;
 		return ret;
 	default:
