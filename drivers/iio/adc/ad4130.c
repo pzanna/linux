@@ -95,6 +95,7 @@
 
 #define AD4130_REG_FILTER_X(x)		(0x21 + (x))
 #define AD4130_FILTER_MODE_MASK		GENMASK(15, 12)
+#define AD4130_FILTER_SELECT_MASK	GENMASK(10, 0)
 
 #define AD4130_REG_FIFO_CONTROL		0x3a
 #define AD4130_ADD_FIFO_HEADER_MASK	BIT(18)
@@ -232,6 +233,13 @@ struct ad4130_setup_info {
 	enum ad4130_filter_mode		filter_mode;
 };
 
+struct ad4130_filter_config {
+	enum ad4130_filter_mode		filter_mode;
+	unsigned int			odr_div;
+	unsigned int			fs_max;
+	unsigned int			db3_div;
+};
+
 struct ad4130_state {
 	const struct ad4130_chip_info	*chip_info;
 	struct spi_device		*spi;
@@ -284,6 +292,59 @@ struct ad4130_state {
 					    AD4130_FIFO_MAX_SAMPLE_SIZE];
 };
 
+static const struct ad4130_filter_config ad4130_filter_configs[] = {
+	{
+		.filter_mode = AD4130_FILTER_SINC4,
+		.odr_div = 1,
+		.fs_max = 10,
+		.db3_div = 234,
+	},
+	{
+		.filter_mode = AD4130_FILTER_SINC4_SINC1,
+		.odr_div = 11,
+		.fs_max = 10,
+		.db3_div = 590,
+	},
+	{
+		.filter_mode = AD4130_FILTER_SINC3,
+		.odr_div = 1,
+		.fs_max = 2047,
+		.db3_div = 268,
+	},
+	{
+		.filter_mode = AD4130_FILTER_SINC3_REJ60,
+		.odr_div = 1,
+		.fs_max = 2047,
+		.db3_div = 268,
+	},
+	{
+		.filter_mode = AD4130_FILTER_SINC3_SINC1,
+		.odr_div = 1,
+		.fs_max = 2047,
+		.db3_div = 545,
+	},
+	{
+		.filter_mode = AD4130_FILTER_SINC3_PF1,
+		.odr_div = 92,
+		.db3_div = 675,
+	},
+	{
+		.filter_mode = AD4130_FILTER_SINC3_PF2,
+		.odr_div = 100,
+		.db3_div = 675,
+	},
+	{
+		.filter_mode = AD4130_FILTER_SINC3_PF3,
+		.odr_div = 124,
+		.db3_div = 675,
+	},
+	{
+		.filter_mode = AD4130_FILTER_SINC3_PF4,
+		.odr_div = 148,
+		.db3_div = 675,
+	},
+};
+
 static const char * const ad4130_filter_modes_str[] = {
 	[AD4130_FILTER_SINC4] = "sinc4",
 	[AD4130_FILTER_SINC4_SINC1] = "sinc4+sinc1",
@@ -308,6 +369,8 @@ static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
 				  unsigned int val)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
+	const struct ad4130_filter_config *old_filter_config;
+	const struct ad4130_filter_config *filter_config;
 	unsigned int channel = chan->scan_index;
 	struct ad4130_setup_info *setup_info;
 	int ret;
@@ -317,6 +380,21 @@ static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
 
 	if (setup_info->filter_mode == val)
 		goto exit;
+
+	old_filter_config = &ad4130_filter_configs[setup_info->filter_mode];
+	filter_config = &ad4130_filter_configs[val];
+
+	if (filter_config->odr_div != old_filter_config->odr_div ||
+	    filter_config->fs_max < setup_info->fs) {
+		setup_info->fs = filter_config->fs_max;
+		ret = regmap_update_bits(st->regmap,
+					 AD4130_REG_FILTER_X(channel),
+					 AD4130_FILTER_SELECT_MASK,
+					 FIELD_PREP(AD4130_FILTER_SELECT_MASK,
+						    setup_info->fs));
+		if (ret)
+			goto exit;
+	}
 
 	ret = regmap_update_bits(st->regmap, AD4130_REG_FILTER_X(channel),
 				 AD4130_FILTER_MODE_MASK,
