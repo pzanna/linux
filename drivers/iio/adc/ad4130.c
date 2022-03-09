@@ -94,6 +94,7 @@
 #define AD4130_PGA_NUM			8
 
 #define AD4130_REG_FILTER_X(x)		(0x21 + (x))
+#define AD4130_FILTER_MODE_MASK		GENMASK(15, 12)
 
 #define AD4130_REG_FIFO_CONTROL		0x3a
 #define AD4130_ADD_FIFO_HEADER_MASK	BIT(18)
@@ -298,13 +299,43 @@ static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
 				  const struct iio_chan_spec *chan,
 				  unsigned int val)
 {
-	return 0;
+	struct ad4130_state *st = iio_priv(indio_dev);
+	unsigned int channel = chan->scan_index;
+	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
+	struct ad4130_setup_info *setup_info;
+	int ret;
+
+	mutex_lock(&st->lock);
+	setup_info = &st->setups_info[chan_info->setup];
+
+	ret = regmap_update_bits(st->regmap, AD4130_REG_FILTER_X(channel),
+				 AD4130_FILTER_MODE_MASK,
+				 FIELD_PREP(AD4130_FILTER_MODE_MASK, val));
+	if (ret)
+		goto exit;
+
+	setup_info->filter_mode = val;
+
+ exit:
+	mutex_unlock(&st->lock);
+
+	return ret;
 }
 
 static int ad4130_get_filter_mode(struct iio_dev *indio_dev,
 				  const struct iio_chan_spec *chan)
 {
-	return 0;
+	struct ad4130_state *st = iio_priv(indio_dev);
+	struct ad4130_chan_info *chan_info = &st->chans_info[chan->scan_index];
+	struct ad4130_setup_info *setup_info;
+	enum ad4130_filter_mode filter_mode;
+
+	mutex_lock(&st->lock);
+	setup_info = &st->setups_info[chan_info->setup];
+	filter_mode = setup_info->filter_mode;
+	mutex_unlock(&st->lock);
+
+	return filter_mode;
 }
 
 static const struct iio_enum ad4130_filter_mode_enum = {
