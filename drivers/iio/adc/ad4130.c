@@ -603,7 +603,7 @@ static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
 	filter_config = &ad4130_filter_configs[val];
 
 	if (filter_config->odr_div != old_filter_config->odr_div ||
-	    filter_config->fs_max < setup_info->fs) {
+	    setup_info->fs > filter_config->fs_max) {
 		setup_info->fs = filter_config->fs_max;
 		ret = regmap_update_bits(st->regmap,
 					 AD4130_REG_FILTER_X(channel),
