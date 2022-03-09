@@ -303,7 +303,7 @@ struct ad4130_state {
 		.fs_max = (_fs_max),						\
 		.db3_div = (_db3_div),						\
 		.samp_freq_avail_type = IIO_AVAIL_RANGE,			\
-		.samp_freq_avail_len = 3 * 2,					\
+		.samp_freq_avail_len = 3,					\
 		.samp_freq_avail = {						\
 			{ AD4130_MAX_ODR, (_odr_div) * (_fs_max) },		\
 			{ AD4130_MAX_ODR, (_odr_div) * (_fs_max) },		\
@@ -317,7 +317,7 @@ struct ad4130_state {
 		.odr_div = (_odr_div),					\
 		.db3_div = (_db3_div),					\
 		.samp_freq_avail_type = IIO_AVAIL_LIST,			\
-		.samp_freq_avail_len = 1 * 2,				\
+		.samp_freq_avail_len = 1,				\
 		.samp_freq_avail = {					\
 			{ AD4130_MAX_ODR, (_odr_div) },			\
 		},							\
@@ -807,7 +807,7 @@ static int ad4130_read_avail(struct iio_dev *indio_dev,
 		setup_info = _ad4130_get_channel_setup(st, channel);
 		filter_config = &ad4130_filter_configs[setup_info->filter_mode];
 		*vals = (int *)filter_config->samp_freq_avail;
-		*length = filter_config->samp_freq_avail_len;
+		*length = filter_config->samp_freq_avail_len * 2;
 		ret = filter_config->samp_freq_avail_type;
 		mutex_unlock(&st->lock);
 		*type = IIO_VAL_FRACTIONAL;
