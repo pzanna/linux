@@ -225,6 +225,7 @@ struct ad4130_setup_info {
 	unsigned int			iout1_val;
 	unsigned int			burnout;
 	unsigned int			pga;
+	unsigned int			fs;
 	bool				ref_bufp;
 	bool				ref_bufm;
 	u32				ref_sel;
