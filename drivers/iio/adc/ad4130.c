@@ -238,6 +238,9 @@ struct ad4130_filter_config {
 	unsigned int			odr_div;
 	unsigned int			fs_max;
 	unsigned int			db3_div;
+	enum iio_available_type		samp_freq_avail_type;
+	unsigned int			samp_freq_avail[3][2];
+	unsigned int			samp_freq_avail_len;
 };
 
 struct ad4130_state {
@@ -298,6 +301,13 @@ struct ad4130_state {
 		.odr_div = (_odr_div),						\
 		.fs_max = (_fs_max),						\
 		.db3_div = (_db3_div),						\
+		.samp_freq_avail_type = IIO_AVAIL_RANGE,			\
+		.samp_freq_avail_len = 3,					\
+		.samp_freq_avail = {						\
+			{ 2400, (_odr_div) * (_fs_max) },			\
+			{ 2400, (_odr_div) * (_fs_max) },			\
+			{ 2400, (_odr_div) },					\
+		},								\
 }
 
 #define AD4130_FIXED_ODR_CONFIG(_filter_mode, _odr_div, _db3_div)	\
@@ -305,6 +315,11 @@ struct ad4130_state {
 		.filter_mode = (_filter_mode),				\
 		.odr_div = (_odr_div),					\
 		.db3_div = (_db3_div),					\
+		.samp_freq_avail_type = IIO_AVAIL_LIST,			\
+		.samp_freq_avail_len = 1,				\
+		.samp_freq_avail = {					\
+			{ 2400, (_odr_div) },				\
+		},							\
 }
 
 static const struct ad4130_filter_config ad4130_filter_configs[] = {
