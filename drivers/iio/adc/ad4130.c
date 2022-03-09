@@ -93,6 +93,8 @@
 #define AD4130_PGA_MASK			GENMASK(3, 1)
 #define AD4130_PGA_NUM			8
 
+#define AD4130_REG_FILTER_X(x)		(0x21 + (x))
+
 #define AD4130_REG_FIFO_CONTROL		0x3a
 #define AD4130_ADD_FIFO_HEADER_MASK	BIT(18)
 #define AD4130_FIFO_MODE_MASK		GENMASK(17, 16)
@@ -135,6 +137,11 @@ static const unsigned int ad4130_reg_size[] = {
 		...
 		AD4130_REG_CONFIG_X(AD4130_MAX_SETUPS)
 	] = 2,
+	[
+		AD4130_REG_FILTER_X(0)
+		...
+		AD4130_REG_FILTER_X(AD4130_MAX_SETUPS)
+	] = 3,
 	[AD4130_REG_FIFO_CONTROL] = 3,
 };
 
