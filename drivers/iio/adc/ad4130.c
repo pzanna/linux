@@ -292,57 +292,31 @@ struct ad4130_state {
 					    AD4130_FIFO_MAX_SAMPLE_SIZE];
 };
 
+#define AD4130_VARIABLE_ODR_CONFIG(_filter_mode, _odr_div, _fs_max, _db3_div)	\
+{										\
+		.filter_mode = (_filter_mode),					\
+		.odr_div = (_odr_div),						\
+		.fs_max = (_fs_max),						\
+		.db3_div = (_db3_div),						\
+}
+
+#define AD4130_FIXED_ODR_CONFIG(_filter_mode, _odr_div, _db3_div)	\
+{									\
+		.filter_mode = (_filter_mode),				\
+		.odr_div = (_odr_div),					\
+		.db3_div = (_db3_div),					\
+}
+
 static const struct ad4130_filter_config ad4130_filter_configs[] = {
-	{
-		.filter_mode = AD4130_FILTER_SINC4,
-		.odr_div = 1,
-		.fs_max = 10,
-		.db3_div = 234,
-	},
-	{
-		.filter_mode = AD4130_FILTER_SINC4_SINC1,
-		.odr_div = 11,
-		.fs_max = 10,
-		.db3_div = 590,
-	},
-	{
-		.filter_mode = AD4130_FILTER_SINC3,
-		.odr_div = 1,
-		.fs_max = 2047,
-		.db3_div = 268,
-	},
-	{
-		.filter_mode = AD4130_FILTER_SINC3_REJ60,
-		.odr_div = 1,
-		.fs_max = 2047,
-		.db3_div = 268,
-	},
-	{
-		.filter_mode = AD4130_FILTER_SINC3_SINC1,
-		.odr_div = 1,
-		.fs_max = 2047,
-		.db3_div = 545,
-	},
-	{
-		.filter_mode = AD4130_FILTER_SINC3_PF1,
-		.odr_div = 92,
-		.db3_div = 675,
-	},
-	{
-		.filter_mode = AD4130_FILTER_SINC3_PF2,
-		.odr_div = 100,
-		.db3_div = 675,
-	},
-	{
-		.filter_mode = AD4130_FILTER_SINC3_PF3,
-		.odr_div = 124,
-		.db3_div = 675,
-	},
-	{
-		.filter_mode = AD4130_FILTER_SINC3_PF4,
-		.odr_div = 148,
-		.db3_div = 675,
-	},
+	AD4130_VARIABLE_ODR_CONFIG(AD4130_FILTER_SINC4, 1, 10, 234),
+	AD4130_VARIABLE_ODR_CONFIG(AD4130_FILTER_SINC4_SINC1, 11, 10, 590),
+	AD4130_VARIABLE_ODR_CONFIG(AD4130_FILTER_SINC3, 1, 2047, 268),
+	AD4130_VARIABLE_ODR_CONFIG(AD4130_FILTER_SINC3_REJ60, 1, 2047, 268),
+	AD4130_VARIABLE_ODR_CONFIG(AD4130_FILTER_SINC3_SINC1, 1, 2047, 545),
+	AD4130_FIXED_ODR_CONFIG(AD4130_FILTER_SINC3_PF1, 92, 675),
+	AD4130_FIXED_ODR_CONFIG(AD4130_FILTER_SINC3_PF2, 100, 675),
+	AD4130_FIXED_ODR_CONFIG(AD4130_FILTER_SINC3_PF3, 124, 675),
+	AD4130_FIXED_ODR_CONFIG(AD4130_FILTER_SINC3_PF4, 148, 675),
 };
 
 static const char * const ad4130_filter_modes_str[] = {
