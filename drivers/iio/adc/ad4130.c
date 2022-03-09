@@ -302,7 +302,7 @@ struct ad4130_state {
 		.fs_max = (_fs_max),						\
 		.db3_div = (_db3_div),						\
 		.samp_freq_avail_type = IIO_AVAIL_RANGE,			\
-		.samp_freq_avail_len = 3,					\
+		.samp_freq_avail_len = 3 * 2,					\
 		.samp_freq_avail = {						\
 			{ 2400, (_odr_div) * (_fs_max) },			\
 			{ 2400, (_odr_div) * (_fs_max) },			\
@@ -316,7 +316,7 @@ struct ad4130_state {
 		.odr_div = (_odr_div),					\
 		.db3_div = (_db3_div),					\
 		.samp_freq_avail_type = IIO_AVAIL_LIST,			\
-		.samp_freq_avail_len = 1,				\
+		.samp_freq_avail_len = 1 * 2,				\
 		.samp_freq_avail = {					\
 			{ 2400, (_odr_div) },				\
 		},							\
@@ -327,7 +327,7 @@ static const struct ad4130_filter_config ad4130_filter_configs[] = {
 	AD4130_VARIABLE_ODR_CONFIG(AD4130_FILTER_SINC4_SINC1, 11, 10, 590),
 	AD4130_VARIABLE_ODR_CONFIG(AD4130_FILTER_SINC3, 1, 2047, 268),
 	AD4130_VARIABLE_ODR_CONFIG(AD4130_FILTER_SINC3_REJ60, 1, 2047, 268),
-	AD4130_VARIABLE_ODR_CONFIG(AD4130_FILTER_SINC3_SINC1, 1, 2047, 545),
+	AD4130_VARIABLE_ODR_CONFIG(AD4130_FILTER_SINC3_SINC1, 10, 2047, 545),
 	AD4130_FIXED_ODR_CONFIG(AD4130_FILTER_SINC3_PF1, 92, 675),
 	AD4130_FIXED_ODR_CONFIG(AD4130_FILTER_SINC3_PF2, 100, 675),
 	AD4130_FIXED_ODR_CONFIG(AD4130_FILTER_SINC3_PF3, 124, 675),
@@ -788,7 +788,9 @@ static int ad4130_read_avail(struct iio_dev *indio_dev,
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	unsigned int channel = chan->scan_index;
+	const struct ad4130_filter_config *filter_config;
 	struct ad4130_setup_info *setup_info;
+	int ret;
 
 	switch (info) {
 	case IIO_CHAN_INFO_SCALE:
@@ -799,6 +801,16 @@ static int ad4130_read_avail(struct iio_dev *indio_dev,
 		mutex_unlock(&st->lock);
 		*type = IIO_VAL_INT_PLUS_NANO;
 		return IIO_AVAIL_LIST;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		mutex_lock(&st->lock);
+		setup_info = _ad4130_get_channel_setup(st, channel);
+		filter_config = &ad4130_filter_configs[setup_info->filter_mode];
+		*vals = (int *)filter_config->samp_freq_avail;
+		*length = filter_config->samp_freq_avail_len;
+		ret = filter_config->samp_freq_avail_type;
+		mutex_unlock(&st->lock);
+		*type = IIO_VAL_FRACTIONAL;
+		return ret;
 	default:
 		return -EINVAL;
 	}
@@ -810,6 +822,7 @@ static int ad4130_write_raw_get_fmt(struct iio_dev *indio_dev,
 {
 	switch (info) {
 	case IIO_CHAN_INFO_SCALE:
+	case IIO_CHAN_INFO_SAMP_FREQ:
 		return IIO_VAL_INT_PLUS_NANO;
 	default:
 		return -EINVAL;
