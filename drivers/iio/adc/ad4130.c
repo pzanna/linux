@@ -735,7 +735,7 @@ static int ad4130_set_channel_freq(struct ad4130_state *st,
 	const struct ad4130_filter_config *filter_config;
 	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
 	struct ad4130_setup_info *setup_info;
-	unsigned long dividend, divisor;
+	unsigned long long dividend, divisor;
 	unsigned int fs;
 	int ret;
 
@@ -747,16 +747,16 @@ static int ad4130_set_channel_freq(struct ad4130_state *st,
 		goto exit;
 	}
 
-	dividend = (val * 1000000000ul + val2) * filter_config->odr_div *
+	dividend = (val * 1000000000ull + val2) * filter_config->odr_div *
 		   filter_config->fs_max;
-	divisor = AD4130_MAX_ODR * 1000000000ul;
+	divisor = AD4130_MAX_ODR * 1000000000ull;
 
 	if (db3) {
 		dividend *= 1000;
 		divisor *= filter_config->db3_div;
 	}
 
-	fs = DIV_ROUND_CLOSEST(dividend, divisor);
+	fs = DIV_ROUND_CLOSEST_ULL(dividend, divisor);
 	if (fs > filter_config->fs_max) {
 		ret = -EINVAL;
 		goto exit;
