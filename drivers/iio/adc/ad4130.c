@@ -1414,7 +1414,7 @@ static int ad4130_fill_scale_tbls(struct ad4130_state *st)
 		for (j = 0; j < AD4130_PGA_NUM; j++) {
 			unsigned int pow = st->chip_info->resolution + j -
 					   st->bipolar;
-			unsigned int nv = div_u64(((ref_uv * 1000000000ull) >>
+			unsigned int nv = div_u64(((ref_uv * 1000000000ul) >>
 						   pow), 1000);
 			st->scale_tbls[i][j][0] = 0;
 			st->scale_tbls[i][j][1] = nv;
