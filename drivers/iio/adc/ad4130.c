@@ -709,6 +709,48 @@ exit:
 	return ret;
 }
 
+static int ad4130_set_channel_odr(struct ad4130_state *st, unsigned int channel,
+				  int val, int val2)
+{
+	const struct ad4130_filter_config *filter_config;
+	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
+	struct ad4130_setup_info *setup_info;
+	unsigned int fs;
+	int ret;
+
+	mutex_lock(&st->lock);
+	setup_info = &st->setups_info[chan_info->setup];
+	filter_config = &ad4130_filter_configs[setup_info->filter_mode];
+
+	if (!filter_config->fs_max) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	fs = DIV_ROUND_CLOSEST((val * 1000000000ul + val2) *
+			       filter_config->odr_div * filter_config->fs_max,
+			       AD4130_MAX_ODR * 1000000000ul);
+
+	if (fs > filter_config->fs_max) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	ret = regmap_update_bits(st->regmap,
+				 AD4130_REG_FILTER_X(chan_info->setup),
+				 AD4130_FILTER_SELECT_MASK,
+				 FIELD_PREP(AD4130_FILTER_SELECT_MASK, fs));
+	if (ret)
+		goto exit;
+
+	setup_info->fs = fs;
+
+exit:
+	mutex_unlock(&st->lock);
+
+	return ret;
+}
+
 static int _ad4130_read_sample(struct ad4130_state *st, unsigned int channel,
 			       int *val)
 {
@@ -848,6 +890,8 @@ static int ad4130_write_raw(struct iio_dev *indio_dev,
 	switch (info) {
 	case IIO_CHAN_INFO_SCALE:
 		return ad4130_set_channel_pga(st, channel, val, val2);
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		return ad4130_set_channel_odr(st, channel, val, val2);
 	default:
 		return -EINVAL;
 	}
