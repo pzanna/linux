@@ -143,6 +143,7 @@ enum ad4130_mclk_sel {
 	AD4130_MCLK_76_8KHZ_OUT,
 	AD4130_MCLK_76_8KHZ_EXT,
 	AD4130_MCLK_153_6KHZ_EXT,
+	AD4130_MCLK_SEL_MAX,
 };
 
 enum ad4130_int_pin_sel {
@@ -150,6 +151,7 @@ enum ad4130_int_pin_sel {
 	AD4130_INT_PIN_CLK,
 	AD4130_INT_PIN_P1,
 	AD4130_INT_PIN_DOUT,
+	AD4130_INT_PIN_MAX,
 };
 
 enum ad4130_iout {
@@ -161,6 +163,7 @@ enum ad4130_iout {
 	AD4130_IOUT_150000NA,
 	AD4130_IOUT_200000NA,
 	AD4130_IOUT_100NA,
+	AD4130_IOUT_MAX,
 };
 
 enum ad4130_burnout {
@@ -168,6 +171,7 @@ enum ad4130_burnout {
 	AD4130_BURNOUT_500NA,
 	AD4130_BURNOUT_2000NA,
 	AD4130_BURNOUT_4000NA,
+	AD4130_BURNOUT_MAX,
 };
 
 enum ad4130_ref_sel {
@@ -293,7 +297,7 @@ struct ad4130_state {
 					    AD4130_FIFO_MAX_SAMPLE_SIZE];
 };
 
-static const unsigned int ad4130_iout_current_na_tbl[] = {
+static const unsigned int ad4130_iout_current_na_tbl[AD4130_IOUT_MAX] = {
 	[AD4130_IOUT_OFF] = 0,
 	[AD4130_IOUT_100NA] = 100,
 	[AD4130_IOUT_10000NA] = 10000,
@@ -304,7 +308,7 @@ static const unsigned int ad4130_iout_current_na_tbl[] = {
 	[AD4130_IOUT_200000NA] = 200000,
 };
 
-static const unsigned int ad4130_burnout_current_na_tbl[] = {
+static const unsigned int ad4130_burnout_current_na_tbl[AD4130_BURNOUT_MAX] = {
 	[AD4130_BURNOUT_OFF] = 0,
 	[AD4130_BURNOUT_500NA] = 500,
 	[AD4130_BURNOUT_2000NA] = 2000,
@@ -1241,7 +1245,7 @@ static int ad4130_validate_excitation_current(struct ad4130_state *st,
 	struct device *dev = &st->spi->dev;
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(ad4130_iout_current_na_tbl); i++)
+	for (i = 0; i < AD4130_IOUT_MAX; i++)
 		if (ad4130_iout_current_na_tbl[i] == current_na) {
 			*iout_val = i;
 			return 0;
@@ -1259,7 +1263,7 @@ static int ad4130_validate_burnout_current(struct ad4130_state *st,
 	struct device *dev = &st->spi->dev;
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(ad4130_burnout_current_na_tbl); i++)
+	for (i = 0; i < AD4130_BURNOUT_MAX; i++)
 		if (ad4130_burnout_current_na_tbl[i] == current_na) {
 			*burnout = i;
 			return 0;
@@ -1450,7 +1454,7 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 		return -EINVAL;
 	}
 
-	if (st->int_pin_sel > AD4130_INT_PIN_DOUT) {
+	if (st->int_pin_sel >= AD4130_INT_PIN_MAX) {
 		dev_err(dev, "Invalid interrupt pin %u\n", st->int_pin_sel);
 		return -EINVAL;
 	}
@@ -1468,7 +1472,7 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 	st->mclk_sel = AD4130_MCLK_76_8KHZ;
 	device_property_read_u32(dev, "adi,mclk-sel", &st->mclk_sel);
 
-	if (st->mclk_sel > AD4130_MCLK_153_6KHZ_EXT) {
+	if (st->mclk_sel >= AD4130_MCLK_SEL_MAX) {
 		dev_err(dev, "Invalid clock %u\n", st->mclk_sel);
 		return -EINVAL;
 	}
