@@ -780,9 +780,7 @@ static int ad4130_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_INT_PLUS_NANO;
 	case IIO_CHAN_INFO_OFFSET:
-		mutex_lock(&st->lock);
 		*val = st->bipolar ? -(1 << (chan->scan_type.realbits - 1)) : 0;
-		mutex_unlock(&st->lock);
 
 		return IIO_VAL_INT;
 	default:
