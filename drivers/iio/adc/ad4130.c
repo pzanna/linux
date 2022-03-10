@@ -591,6 +591,15 @@ static irqreturn_t ad4130_irq_handler(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
+static int ad4130_set_setup_filter_select(struct ad4130_state *st,
+					  unsigned int setup,
+					  unsigned int val)
+{
+	return regmap_update_bits(st->regmap, AD4130_REG_FILTER_X(setup),
+				  AD4130_FILTER_SELECT_MASK,
+				  FIELD_PREP(AD4130_FILTER_SELECT_MASK, val));
+}
+
 static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
 				  const struct iio_chan_spec *chan,
 				  unsigned int val)
@@ -614,11 +623,8 @@ static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
 
 	if (filter_config->odr_div != old_filter_config->odr_div ||
 	    setup_info->fs > filter_config->fs_max) {
-		ret = regmap_update_bits(st->regmap,
-					 AD4130_REG_FILTER_X(chan_info->setup),
-					 AD4130_FILTER_SELECT_MASK,
-					 FIELD_PREP(AD4130_FILTER_SELECT_MASK,
-						    setup_info->fs));
+		ret = ad4130_set_setup_filter_select(st, chan_info->setup,
+						     setup_info->fs);
 		if (ret)
 			goto exit;
 
@@ -762,10 +768,7 @@ static int ad4130_set_channel_freq(struct ad4130_state *st,
 		goto exit;
 	}
 
-	ret = regmap_update_bits(st->regmap,
-				 AD4130_REG_FILTER_X(chan_info->setup),
-				 AD4130_FILTER_SELECT_MASK,
-				 FIELD_PREP(AD4130_FILTER_SELECT_MASK, fs));
+	ret = ad4130_set_setup_filter_select(st, chan_info->setup, fs);
 	if (ret)
 		goto exit;
 
