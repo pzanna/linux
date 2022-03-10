@@ -594,7 +594,6 @@ static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
 
 	if (filter_config->odr_div != old_filter_config->odr_div ||
 	    setup_info->fs > filter_config->fs_max) {
-		setup_info->fs = filter_config->fs_max;
 		ret = regmap_update_bits(st->regmap,
 					 AD4130_REG_FILTER_X(channel),
 					 AD4130_FILTER_SELECT_MASK,
@@ -602,6 +601,8 @@ static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
 						    setup_info->fs));
 		if (ret)
 			goto exit;
+
+		setup_info->fs = filter_config->fs_max;
 	}
 
 	ret = regmap_update_bits(st->regmap, AD4130_REG_FILTER_X(channel),
