@@ -580,11 +580,12 @@ static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
 	const struct ad4130_filter_config *old_filter_config;
 	const struct ad4130_filter_config *filter_config;
 	unsigned int channel = chan->scan_index;
+	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
 	struct ad4130_setup_info *setup_info;
 	int ret;
 
 	mutex_lock(&st->lock);
-	setup_info = _ad4130_get_channel_setup(st, channel);
+	setup_info = &st->setups_info[chan_info->setup];
 
 	if (setup_info->filter_mode == val)
 		goto exit;
@@ -595,7 +596,7 @@ static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
 	if (filter_config->odr_div != old_filter_config->odr_div ||
 	    setup_info->fs > filter_config->fs_max) {
 		ret = regmap_update_bits(st->regmap,
-					 AD4130_REG_FILTER_X(channel),
+					 AD4130_REG_FILTER_X(chan_info->setup),
 					 AD4130_FILTER_SELECT_MASK,
 					 FIELD_PREP(AD4130_FILTER_SELECT_MASK,
 						    setup_info->fs));
@@ -605,7 +606,8 @@ static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
 		setup_info->fs = filter_config->fs_max;
 	}
 
-	ret = regmap_update_bits(st->regmap, AD4130_REG_FILTER_X(channel),
+	ret = regmap_update_bits(st->regmap,
+				 AD4130_REG_FILTER_X(chan_info->setup),
 				 AD4130_FILTER_MODE_MASK,
 				 FIELD_PREP(AD4130_FILTER_MODE_MASK, val));
 	if (ret)
@@ -674,12 +676,13 @@ static const struct iio_chan_spec ad4130_channel_template = {
 static int ad4130_set_channel_pga(struct ad4130_state *st, unsigned int channel,
 				  int val, int val2)
 {
+	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
 	struct ad4130_setup_info *setup_info;
 	unsigned int i;
 	int ret;
 
 	mutex_lock(&st->lock);
-	setup_info = _ad4130_get_channel_setup(st, channel);
+	setup_info = &st->setups_info[chan_info->setup];
 
 	for (i = 0; i < AD4130_PGA_NUM; i++)
 		if (val == st->scale_tbls[setup_info->ref_sel][i][0] &&
@@ -691,7 +694,8 @@ static int ad4130_set_channel_pga(struct ad4130_state *st, unsigned int channel,
 		goto exit;
 	}
 
-	ret = regmap_update_bits(st->regmap, AD4130_REG_CONFIG_X(channel),
+	ret = regmap_update_bits(st->regmap,
+				 AD4130_REG_CONFIG_X(chan_info->setup),
 				 AD4130_PGA_MASK,
 				 FIELD_PREP(AD4130_PGA_MASK, i));
 	if (ret)
