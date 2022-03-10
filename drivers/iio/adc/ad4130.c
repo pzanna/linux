@@ -740,7 +740,6 @@ static int ad4130_set_channel_odr(struct ad4130_state *st, unsigned int channel,
 	mutex_lock(&st->lock);
 	setup_info = &st->setups_info[chan_info->setup];
 	filter_config = &ad4130_filter_configs[setup_info->filter_mode];
-
 	if (!filter_config->fs_max) {
 		ret = -EINVAL;
 		goto exit;
@@ -749,7 +748,6 @@ static int ad4130_set_channel_odr(struct ad4130_state *st, unsigned int channel,
 	fs = DIV_ROUND_CLOSEST((val * 1000000000ul + val2) *
 			       filter_config->odr_div * filter_config->fs_max,
 			       AD4130_MAX_ODR * 1000000000ul);
-
 	if (fs > filter_config->fs_max) {
 		ret = -EINVAL;
 		goto exit;
