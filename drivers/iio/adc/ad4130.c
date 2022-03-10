@@ -728,12 +728,14 @@ exit:
 	return ret;
 }
 
-static int ad4130_set_channel_odr(struct ad4130_state *st, unsigned int channel,
-				  int val, int val2)
+static int ad4130_set_channel_freq(struct ad4130_state *st,
+				   unsigned int channel,
+				   int val, int val2, bool db3)
 {
 	const struct ad4130_filter_config *filter_config;
 	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
 	struct ad4130_setup_info *setup_info;
+	unsigned long dividend, divisor;
 	unsigned int fs;
 	int ret;
 
@@ -745,9 +747,16 @@ static int ad4130_set_channel_odr(struct ad4130_state *st, unsigned int channel,
 		goto exit;
 	}
 
-	fs = DIV_ROUND_CLOSEST((val * 1000000000ul + val2) *
-			       filter_config->odr_div * filter_config->fs_max,
-			       AD4130_MAX_ODR * 1000000000ul);
+	dividend = (val * 1000000000ul + val2) * filter_config->odr_div *
+		   filter_config->fs_max;
+	divisor = AD4130_MAX_ODR * 1000000000ul;
+
+	if (db3) {
+		dividend *= 1000;
+		divisor *= filter_config->db3_div;
+	}
+
+	fs = DIV_ROUND_CLOSEST(dividend, divisor);
 	if (fs > filter_config->fs_max) {
 		ret = -EINVAL;
 		goto exit;
@@ -937,7 +946,9 @@ static int ad4130_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		return ad4130_set_channel_pga(st, channel, val, val2);
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		return ad4130_set_channel_odr(st, channel, val, val2);
+		return ad4130_set_channel_freq(st, channel, val, val2, false);
+	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
+		return ad4130_set_channel_freq(st, channel, val, val2, true);
 	default:
 		return -EINVAL;
 	}
