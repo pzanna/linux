@@ -216,12 +216,6 @@ struct ad4130_chip_info {
 	bool		has_int_pin;
 };
 
-struct ad4130_chan_info {
-	u32		setup;
-	u32		iout0;
-	u32		iout1;
-};
-
 struct ad4130_setup_info {
 	unsigned int			iout0_val;
 	unsigned int			iout1_val;
@@ -232,6 +226,12 @@ struct ad4130_setup_info {
 	bool				ref_bufm;
 	u32				ref_sel;
 	enum ad4130_filter_mode		filter_mode;
+};
+
+struct ad4130_chan_info {
+	u32				iout0;
+	u32				iout1;
+	u32				setup;
 };
 
 struct ad4130_filter_config {
