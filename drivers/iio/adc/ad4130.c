@@ -366,13 +366,6 @@ static const char * const ad4130_filter_modes_str[] = {
 	[AD4130_FILTER_SINC3_PF4] = "sinc3+pf4",
 };
 
-static struct ad4130_setup_info *
-_ad4130_get_channel_setup(struct ad4130_state *st, unsigned int channel)
-{
-	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
-	return &st->setups_info[chan_info->setup];
-}
-
 static unsigned int ad4130_data_reg_size(struct ad4130_state *st)
 {
 	return st->chip_info->resolution / 8;
@@ -646,8 +639,15 @@ static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
 	return ret;
 }
 
+static struct ad4130_setup_info *
+_ad4130_get_channel_setup(struct ad4130_state *st, unsigned int channel)
+{
+	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
+	return &st->setups_info[chan_info->setup];
+}
+
 static enum ad4130_filter_mode
-_ad4130_get_filter_mode(struct ad4130_state *st, unsigned int channel)
+_ad4130_get_channel_filter_mode(struct ad4130_state *st, unsigned int channel)
 {
 	struct ad4130_setup_info *setup_info;
 	enum ad4130_filter_mode filter_mode;
@@ -666,7 +666,7 @@ static int ad4130_get_filter_mode(struct iio_dev *indio_dev,
 	struct ad4130_state *st = iio_priv(indio_dev);
 	unsigned int channel = chan->scan_index;
 
-	return _ad4130_get_filter_mode(st, channel);
+	return _ad4130_get_channel_filter_mode(st, channel);
 }
 
 static const struct iio_enum ad4130_filter_mode_enum = {
@@ -911,7 +911,7 @@ static int ad4130_read_avail(struct iio_dev *indio_dev,
 		*type = IIO_VAL_INT_PLUS_NANO;
 		return IIO_AVAIL_LIST;
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		filter_mode = _ad4130_get_filter_mode(st, channel);
+		filter_mode = _ad4130_get_channel_filter_mode(st, channel);
 		filter_config = &ad4130_filter_configs[filter_mode];
 		*vals = (int *)filter_config->samp_freq_avail;
 		*length = filter_config->samp_freq_avail_len * 2;
