@@ -671,10 +671,9 @@ static const struct iio_chan_spec ad4130_channel_template = {
 	},
 };
 
-static int ad4130_set_channel_pga(struct iio_dev *indio_dev,
-				  unsigned int channel, int val, int val2)
+static int ad4130_set_channel_pga(struct ad4130_state *st, unsigned int channel,
+				  int val, int val2)
 {
-	struct ad4130_state *st = iio_priv(indio_dev);
 	struct ad4130_setup_info *setup_info;
 	unsigned int i;
 	int ret;
@@ -839,10 +838,12 @@ static int ad4130_write_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
 			    int val, int val2, long info)
 {
+	struct ad4130_state *st = iio_priv(indio_dev);
+	unsigned int channel = chan->scan_index;
+
 	switch (info) {
 	case IIO_CHAN_INFO_SCALE:
-		return ad4130_set_channel_pga(indio_dev, chan->scan_index, val,
-					      val2);
+		return ad4130_set_channel_pga(st, channel, val, val2);
 	default:
 		return -EINVAL;
 	}
