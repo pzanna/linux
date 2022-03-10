@@ -921,6 +921,7 @@ static int ad4130_write_raw_get_fmt(struct iio_dev *indio_dev,
 	switch (info) {
 	case IIO_CHAN_INFO_SCALE:
 	case IIO_CHAN_INFO_SAMP_FREQ:
+	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
 		return IIO_VAL_INT_PLUS_NANO;
 	default:
 		return -EINVAL;
