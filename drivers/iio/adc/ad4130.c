@@ -897,7 +897,6 @@ static int ad4130_read_avail(struct iio_dev *indio_dev,
 	const struct ad4130_filter_config *filter_config;
 	struct ad4130_setup_info *setup_info;
 	enum ad4130_filter_mode filter_mode;
-	int ret;
 
 	switch (info) {
 	case IIO_CHAN_INFO_SCALE:
@@ -913,9 +912,8 @@ static int ad4130_read_avail(struct iio_dev *indio_dev,
 		filter_config = &ad4130_filter_configs[filter_mode];
 		*vals = (int *)filter_config->samp_freq_avail;
 		*length = filter_config->samp_freq_avail_len * 2;
-		ret = filter_config->samp_freq_avail_type;
 		*type = IIO_VAL_FRACTIONAL;
-		return ret;
+		return filter_config->samp_freq_avail_type;
 	default:
 		return -EINVAL;
 	}
