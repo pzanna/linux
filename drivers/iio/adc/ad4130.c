@@ -232,7 +232,7 @@ struct ad4130_setup_info {
 struct ad4130_chan_info {
 	u32				iout0;
 	u32				iout1;
-	u32				setup;
+	struct ad4130_setup_info	setup;
 };
 
 struct ad4130_filter_config {
@@ -263,7 +263,6 @@ struct ad4130_state {
 
 	struct iio_chan_spec		chans[AD4130_MAX_CHANNELS];
 	struct ad4130_chan_info		chans_info[AD4130_MAX_CHANNELS];
-	struct ad4130_setup_info	setups_info[AD4130_MAX_SETUPS];
 	enum ad4130_pin_function	pins_fn[AD4130_MAX_ANALOG_PINS];
 	int				scale_tbls[AD4130_REF_SEL_MAX]
 						  [AD4130_PGA_NUM][2];
@@ -589,16 +588,13 @@ static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
 				  unsigned int val)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
-	const struct ad4130_filter_config *old_filter_config;
-	const struct ad4130_filter_config *filter_config;
 	unsigned int channel = chan->scan_index;
 	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
-	struct ad4130_setup_info *setup_info;
-	int ret;
+	struct ad4130_setup_info *setup_info = &chan_info->setup;
+	const struct ad4130_filter_config *old_filter_config;
+	const struct ad4130_filter_config *filter_config;
 
 	mutex_lock(&st->lock);
-	setup_info = &st->setups_info[chan_info->setup];
-
 	if (setup_info->filter_mode == val)
 		goto exit;
 
@@ -615,28 +611,7 @@ static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
  exit:
 	mutex_unlock(&st->lock);
 
-	return ret;
-}
-
-static struct ad4130_setup_info *
-_ad4130_get_channel_setup(struct ad4130_state *st, unsigned int channel)
-{
-	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
-	return &st->setups_info[chan_info->setup];
-}
-
-static enum ad4130_filter_mode
-_ad4130_get_channel_filter_mode(struct ad4130_state *st, unsigned int channel)
-{
-	struct ad4130_setup_info *setup_info;
-	enum ad4130_filter_mode filter_mode;
-
-	mutex_lock(&st->lock);
-	setup_info = _ad4130_get_channel_setup(st, channel);
-	filter_mode = setup_info->filter_mode;
-	mutex_unlock(&st->lock);
-
-	return filter_mode;
+	return 0;
 }
 
 static int ad4130_get_filter_mode(struct iio_dev *indio_dev,
@@ -644,8 +619,15 @@ static int ad4130_get_filter_mode(struct iio_dev *indio_dev,
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	unsigned int channel = chan->scan_index;
+	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
+	struct ad4130_setup_info *setup_info = &chan_info->setup;
+	enum ad4130_filter_mode filter_mode;
 
-	return _ad4130_get_channel_filter_mode(st, channel);
+	mutex_lock(&st->lock);
+	filter_mode = setup_info->filter_mode;
+	mutex_unlock(&st->lock);
+
+	return filter_mode;
 }
 
 static const struct iio_enum ad4130_filter_mode_enum = {
@@ -681,26 +663,20 @@ static int ad4130_set_channel_pga(struct ad4130_state *st, unsigned int channel,
 				  int val, int val2)
 {
 	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
-	struct ad4130_setup_info *setup_info;
+	struct ad4130_setup_info *setup_info = &chan_info->setup;
 	unsigned int i;
 	int ret;
-
-	mutex_lock(&st->lock);
-	setup_info = &st->setups_info[chan_info->setup];
 
 	for (i = 0; i < AD4130_PGA_NUM; i++)
 		if (val == st->scale_tbls[setup_info->ref_sel][i][0] &&
 		    val2 == st->scale_tbls[setup_info->ref_sel][i][1])
 			break;
 
-	if (i == AD4130_PGA_NUM) {
-		ret = -EINVAL;
-		goto exit;
-	}
+	if (i == AD4130_PGA_NUM)
+		return -EINVAL;
 
+	mutex_lock(&st->lock);
 	setup_info->pga = i;
-
-exit:
 	mutex_unlock(&st->lock);
 
 	return ret;
@@ -712,13 +688,12 @@ static int ad4130_set_channel_freq(struct ad4130_state *st,
 {
 	const struct ad4130_filter_config *filter_config;
 	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
-	struct ad4130_setup_info *setup_info;
+	struct ad4130_setup_info *setup_info = &chan_info->setup;
 	unsigned long long dividend, divisor;
 	unsigned int fs;
 	int ret;
 
 	mutex_lock(&st->lock);
-	setup_info = &st->setups_info[chan_info->setup];
 	filter_config = &ad4130_filter_configs[setup_info->filter_mode];
 	if (!filter_config->fs_max) {
 		ret = -EINVAL;
@@ -753,10 +728,10 @@ static int ad4130_get_channel_freq(struct ad4130_state *st,
 				   int *val, int *val2, bool db3)
 {
 	const struct ad4130_filter_config *filter_config;
-	struct ad4130_setup_info *setup_info;
+	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
+	struct ad4130_setup_info *setup_info = &chan_info->setup;
 
 	mutex_lock(&st->lock);
-	setup_info = _ad4130_get_channel_setup(st, channel);
 	filter_config = &ad4130_filter_configs[setup_info->filter_mode];
 
 	*val = AD4130_MAX_ODR * setup_info->fs;
@@ -832,14 +807,14 @@ static int ad4130_read_raw(struct iio_dev *indio_dev,
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	unsigned int channel = chan->scan_index;
-	struct ad4130_setup_info *setup_info;
+	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
+	struct ad4130_setup_info *setup_info = &chan_info->setup;
 
 	switch (info) {
 	case IIO_CHAN_INFO_RAW:
 		return ad4130_read_sample(indio_dev, channel, val);
 	case IIO_CHAN_INFO_SCALE:
 		mutex_lock(&st->lock);
-		setup_info = _ad4130_get_channel_setup(st, channel);
 		*val = st->scale_tbls[setup_info->ref_sel][setup_info->pga][0];
 		*val2 = st->scale_tbls[setup_info->ref_sel][setup_info->pga][1];
 		mutex_unlock(&st->lock);
@@ -865,25 +840,29 @@ static int ad4130_read_avail(struct iio_dev *indio_dev,
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	unsigned int channel = chan->scan_index;
+	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
+	struct ad4130_setup_info *setup_info = &chan_info->setup;
 	const struct ad4130_filter_config *filter_config;
-	struct ad4130_setup_info *setup_info;
-	enum ad4130_filter_mode filter_mode;
 
 	switch (info) {
 	case IIO_CHAN_INFO_SCALE:
 		mutex_lock(&st->lock);
-		setup_info = _ad4130_get_channel_setup(st, channel);
 		*vals = (int *)st->scale_tbls[setup_info->ref_sel];
 		*length = ARRAY_SIZE(st->scale_tbls[setup_info->ref_sel]) * 2;
 		mutex_unlock(&st->lock);
+
 		*type = IIO_VAL_INT_PLUS_NANO;
+
 		return IIO_AVAIL_LIST;
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		filter_mode = _ad4130_get_channel_filter_mode(st, channel);
-		filter_config = &ad4130_filter_configs[filter_mode];
+		mutex_lock(&st->lock);
+		filter_config = &ad4130_filter_configs[setup_info->filter_mode];
+		mutex_unlock(&st->lock);
+
 		*vals = (int *)filter_config->samp_freq_avail;
 		*length = filter_config->samp_freq_avail_len * 2;
 		*type = IIO_VAL_FRACTIONAL;
+
 		return filter_config->samp_freq_avail_type;
 	default:
 		return -EINVAL;
@@ -1085,6 +1064,140 @@ static const struct attribute *ad4130_fifo_attributes[] = {
 	NULL,
 };
 
+
+static int ad4130_validate_excitation_current(struct ad4130_state *st,
+					      unsigned int *iout_val,
+					      u32 current_na)
+{
+	struct device *dev = &st->spi->dev;
+	unsigned int i;
+
+	for (i = 0; i < AD4130_IOUT_MAX; i++)
+		if (ad4130_iout_current_na_tbl[i] == current_na) {
+			*iout_val = i;
+			return 0;
+		}
+
+	dev_err(dev, "Invalid excitation current %unA\n", current_na);
+
+	return -EINVAL;
+}
+
+static int ad4130_validate_burnout_current(struct ad4130_state *st,
+					   unsigned int *burnout,
+					   u32 current_na)
+{
+	struct device *dev = &st->spi->dev;
+	unsigned int i;
+
+	for (i = 0; i < AD4130_BURNOUT_MAX; i++)
+		if (ad4130_burnout_current_na_tbl[i] == current_na) {
+			*burnout = i;
+			return 0;
+		}
+
+	dev_err(dev, "Invalid excitation current %unA\n", current_na);
+
+	return -EINVAL;
+}
+
+static int ad4130_get_ref_voltage(struct ad4130_state *st,
+				  enum ad4130_ref_sel ref_sel,
+				  unsigned int *ref_uv)
+{
+	struct device *dev = &st->spi->dev;
+	int ret;
+
+	switch (ref_sel) {
+	case AD4130_REF_REFIN1:
+		if (!st->refin1) {
+			dev_err(dev, "Cannot use refin1 without supply\n");
+			return -EINVAL;
+		}
+
+		ret = regulator_get_voltage(st->refin1);
+		break;
+	case AD4130_REF_REFIN2:
+		if (!st->refin2) {
+			dev_err(dev, "Cannot use refin2 without supply\n");
+			return -EINVAL;
+		}
+
+		ret = regulator_get_voltage(st->refin2);
+		break;
+	case AD4130_REF_REFOUT_AVSS:
+		if (!st->int_ref_en) {
+			dev_err(dev, "Cannot use internal reference\n");
+			return -EINVAL;
+		}
+
+		ret = st->int_ref_uv;
+		break;
+	case AD4130_REF_AVDD_AVSS:
+		ret = regulator_get_voltage(st->regulators[0].consumer);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	if (ret <= 0) {
+		dev_err(dev, "Invalid reference voltage: %d\n", ret);
+		return ret;
+	}
+
+	*ref_uv = ret;
+
+	return 0;
+}
+
+static int ad4130_parse_fw_setup(struct ad4130_state *st,
+				 struct fwnode_handle *child,
+				 struct ad4130_setup_info *setup_info)
+{
+	struct device *dev = &st->spi->dev;
+	u32 current_na;
+	int ret;
+
+	fwnode_property_read_u32(child, "adi,excitation-current-0-nanoamps",
+				 &current_na);
+	ret = ad4130_validate_excitation_current(st, &setup_info->iout0_val,
+						 current_na);
+	if (ret)
+		return ret;
+
+	fwnode_property_read_u32(child, "adi,excitation-current-1-nanoamps",
+				 &current_na);
+	ret = ad4130_validate_excitation_current(st, &setup_info->iout1_val,
+						 current_na);
+	if (ret)
+		return ret;
+
+	fwnode_property_read_u32(child, "adi,burnout-current-nanoamps",
+				 &current_na);
+	ret = ad4130_validate_burnout_current(st, &setup_info->burnout,
+					      current_na);
+	if (ret)
+		return ret;
+
+	setup_info->ref_bufp =
+		fwnode_property_read_bool(child, "adi,buffered-positive");
+
+	setup_info->ref_bufm =
+		fwnode_property_read_bool(child, "adi,buffered-negative");
+
+	setup_info->ref_sel = AD4130_REF_REFOUT_AVSS;
+	fwnode_property_read_u32(child, "adi,reference-select",
+				 &setup_info->ref_sel);
+	if (setup_info->ref_sel >= AD4130_REF_SEL_MAX) {
+		dev_err(dev, "Invalid reference selected %u\n",
+			setup_info->ref_sel);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int ad4130_validate_diff_channel(struct ad4130_state *st, u32 pin)
 {
 	struct device *dev = &st->spi->dev;
@@ -1186,12 +1299,6 @@ static int ad4130_parse_fw_channel(struct iio_dev *indio_dev,
 	chan->channel = pins[0];
 	chan->channel2 = pins[1];
 
-	fwnode_property_read_u32(child, "adi,setup", &chan_info->setup);
-	if (chan_info->setup >= AD4130_MAX_SETUPS) {
-		dev_err(dev, "Invalid config setup %u\n", chan_info->setup);
-		return -EINVAL;
-	}
-
 	fwnode_property_read_u32(child, "adi,excitation-pin-0",
 				 &chan_info->iout0);
 	ret = ad4130_validate_excitation_pin(st, chan_info->iout0);
@@ -1204,149 +1311,7 @@ static int ad4130_parse_fw_channel(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
-	return 0;
-}
-
-static int ad4130_validate_excitation_current(struct ad4130_state *st,
-					      unsigned int *iout_val,
-					      u32 current_na)
-{
-	struct device *dev = &st->spi->dev;
-	unsigned int i;
-
-	for (i = 0; i < AD4130_IOUT_MAX; i++)
-		if (ad4130_iout_current_na_tbl[i] == current_na) {
-			*iout_val = i;
-			return 0;
-		}
-
-	dev_err(dev, "Invalid excitation current %unA\n", current_na);
-
-	return -EINVAL;
-}
-
-static int ad4130_validate_burnout_current(struct ad4130_state *st,
-					   unsigned int *burnout,
-					   u32 current_na)
-{
-	struct device *dev = &st->spi->dev;
-	unsigned int i;
-
-	for (i = 0; i < AD4130_BURNOUT_MAX; i++)
-		if (ad4130_burnout_current_na_tbl[i] == current_na) {
-			*burnout = i;
-			return 0;
-		}
-
-	dev_err(dev, "Invalid excitation current %unA\n", current_na);
-
-	return -EINVAL;
-}
-
-static int ad4130_get_ref_voltage(struct ad4130_state *st,
-				  enum ad4130_ref_sel ref_sel,
-				  unsigned int *ref_uv)
-{
-	struct device *dev = &st->spi->dev;
-	int ret;
-
-	switch (ref_sel) {
-	case AD4130_REF_REFIN1:
-		if (!st->refin1) {
-			dev_err(dev, "Cannot use refin1 without supply\n");
-			return -EINVAL;
-		}
-
-		ret = regulator_get_voltage(st->refin1);
-		break;
-	case AD4130_REF_REFIN2:
-		if (!st->refin2) {
-			dev_err(dev, "Cannot use refin2 without supply\n");
-			return -EINVAL;
-		}
-
-		ret = regulator_get_voltage(st->refin2);
-		break;
-	case AD4130_REF_REFOUT_AVSS:
-		if (!st->int_ref_en) {
-			dev_err(dev, "Cannot use internal reference\n");
-			return -EINVAL;
-		}
-
-		ret = st->int_ref_uv;
-		break;
-	case AD4130_REF_AVDD_AVSS:
-		ret = regulator_get_voltage(st->regulators[0].consumer);
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-	if (ret <= 0) {
-		dev_err(dev, "Invalid reference voltage: %d\n", ret);
-		return ret;
-	}
-
-	*ref_uv = ret;
-
-	return 0;
-}
-
-static int ad4130_parse_fw_setup(struct iio_dev *indio_dev,
-				 struct fwnode_handle *child)
-{
-	struct ad4130_state *st = iio_priv(indio_dev);
-	struct ad4130_setup_info *setup_info;
-	struct device *dev = &st->spi->dev;
-	u32 reg, current_na;
-	int ret;
-
-	ret = fwnode_property_read_u32(child, "reg", &reg);
-	if (ret) {
-		dev_err(dev, "Missing setup index\n");
-		return ret;
-	}
-
-	setup_info = &st->setups_info[reg];
-
-	fwnode_property_read_u32(child, "adi,excitation-current-0-nanoamps",
-				 &current_na);
-	ret = ad4130_validate_excitation_current(st, &setup_info->iout0_val,
-						 current_na);
-	if (ret)
-		return ret;
-
-	fwnode_property_read_u32(child, "adi,excitation-current-1-nanoamps",
-				 &current_na);
-	ret = ad4130_validate_excitation_current(st, &setup_info->iout1_val,
-						 current_na);
-	if (ret)
-		return ret;
-
-	fwnode_property_read_u32(child, "adi,burnout-current-nanoamps",
-				 &current_na);
-	ret = ad4130_validate_burnout_current(st, &setup_info->burnout,
-					      current_na);
-	if (ret)
-		return ret;
-
-	setup_info->ref_bufp =
-		fwnode_property_read_bool(child, "adi,buffered-positive");
-
-	setup_info->ref_bufm =
-		fwnode_property_read_bool(child, "adi,buffered-negative");
-
-	setup_info->ref_sel = AD4130_REF_REFOUT_AVSS;
-	fwnode_property_read_u32(child, "adi,reference-select",
-				 &setup_info->ref_sel);
-	if (setup_info->ref_sel >= AD4130_REF_SEL_MAX) {
-		dev_err(dev, "Invalid reference selected %u\n",
-			setup_info->ref_sel);
-		return -EINVAL;
-	}
-
-	return 0;
+	return ad4130_parse_fw_setup(st, child, &chan_info->setup);
 }
 
 static int ad4130_parse_fw_children(struct iio_dev *indio_dev)
@@ -1360,17 +1325,7 @@ static int ad4130_parse_fw_children(struct iio_dev *indio_dev)
 	indio_dev->channels = st->chans;
 
 	fwnode_for_each_available_child_node(fwnode, child) {
-		const char *name = fwnode_get_name(child);
-
-		if (!strcmp(name, "channel")) {
-			ret = ad4130_parse_fw_channel(indio_dev, child);
-		} else if (strcmp(name, "setup")) {
-			ret = ad4130_parse_fw_setup(indio_dev, child);
-		} else {
-			dev_err(dev, "Invalid child name %s\n", name);
-			ret = -EINVAL;
-		}
-
+		ret = ad4130_parse_fw_channel(indio_dev, child);
 		if (ret)
 			break;
 	}
@@ -1583,8 +1538,7 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 		struct ad4130_chan_info *chan_info = &st->chans_info[channel];
 		unsigned int val;
 
-		val = FIELD_PREP(AD4130_SETUP_MASK, chan_info->setup) |
-		      FIELD_PREP(AD4130_AINP_MASK, chan->channel) |
+		val = FIELD_PREP(AD4130_AINP_MASK, chan->channel) |
 		      FIELD_PREP(AD4130_AINM_MASK, chan->channel2) |
 		      FIELD_PREP(AD4130_IOUT1_MASK, chan_info->iout0) |
 		      FIELD_PREP(AD4130_IOUT2_MASK, chan_info->iout1);
