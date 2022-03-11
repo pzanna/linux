@@ -741,7 +741,6 @@ static int ad4130_get_channel_freq(struct ad4130_state *st,
 		*val *= filter_config->db3_div;
 		*val2 *= 1000;
 	}
-
 	mutex_unlock(&st->lock);
 
 	return IIO_VAL_FRACTIONAL;
