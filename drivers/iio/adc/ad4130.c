@@ -584,15 +584,6 @@ static irqreturn_t ad4130_irq_handler(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
-static int ad4130_set_setup_filter_select(struct ad4130_state *st,
-					  unsigned int setup,
-					  unsigned int val)
-{
-	return regmap_update_bits(st->regmap, AD4130_REG_FILTER_X(setup),
-				  AD4130_FILTER_SELECT_MASK,
-				  FIELD_PREP(AD4130_FILTER_SELECT_MASK, val));
-}
-
 static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
 				  const struct iio_chan_spec *chan,
 				  unsigned int val)
@@ -616,20 +607,8 @@ static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
 
 	if (filter_config->odr_div != old_filter_config->odr_div ||
 	    setup_info->fs > filter_config->fs_max) {
-		ret = ad4130_set_setup_filter_select(st, chan_info->setup,
-						     setup_info->fs);
-		if (ret)
-			goto exit;
-
 		setup_info->fs = filter_config->fs_max;
 	}
-
-	ret = regmap_update_bits(st->regmap,
-				 AD4130_REG_FILTER_X(chan_info->setup),
-				 AD4130_FILTER_MODE_MASK,
-				 FIELD_PREP(AD4130_FILTER_MODE_MASK, val));
-	if (ret)
-		goto exit;
 
 	setup_info->filter_mode = val;
 
@@ -719,13 +698,6 @@ static int ad4130_set_channel_pga(struct ad4130_state *st, unsigned int channel,
 		goto exit;
 	}
 
-	ret = regmap_update_bits(st->regmap,
-				 AD4130_REG_CONFIG_X(chan_info->setup),
-				 AD4130_PGA_MASK,
-				 FIELD_PREP(AD4130_PGA_MASK, i));
-	if (ret)
-		goto exit;
-
 	setup_info->pga = i;
 
 exit:
@@ -767,10 +739,6 @@ static int ad4130_set_channel_freq(struct ad4130_state *st,
 		ret = -EINVAL;
 		goto exit;
 	}
-
-	ret = ad4130_set_setup_filter_select(st, chan_info->setup, fs);
-	if (ret)
-		goto exit;
 
 	setup_info->fs = fs;
 
@@ -1623,22 +1591,6 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 
 		ret = regmap_write(st->regmap, AD4130_REG_CHANNEL_X(channel),
 				   val);
-		if (ret)
-			return ret;
-	}
-
-	for (i = 0; i < AD4130_MAX_SETUPS; i++) {
-		struct ad4130_setup_info *setup_info = &st->setups_info[i];
-		unsigned int val;
-
-		val = FIELD_PREP(AD4130_IOUT1_VAL_MASK, setup_info->iout0_val) |
-		      FIELD_PREP(AD4130_IOUT1_VAL_MASK, setup_info->iout1_val) |
-		      FIELD_PREP(AD4130_BURNOUT_MASK, setup_info->burnout) |
-		      FIELD_PREP(AD4130_REF_BUFP_MASK, setup_info->ref_bufp) |
-		      FIELD_PREP(AD4130_REF_BUFM_MASK, setup_info->ref_bufm) |
-		      FIELD_PREP(AD4130_REF_SEL_MASK, setup_info->ref_sel);
-
-		ret = regmap_write(st->regmap, AD4130_REG_CONFIG_X(i), val);
 		if (ret)
 			return ret;
 	}
