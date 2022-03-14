@@ -752,8 +752,14 @@ static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
 	struct ad4130_setup_info *setup_info = &chan_info->setup;
 	const struct ad4130_filter_config *old_filter_config;
 	const struct ad4130_filter_config *filter_config;
+	int ret = 0;
 
 	mutex_lock(&st->lock);
+	if (chan_info->enabled) {
+		ret = -EBUSY;
+		goto exit;
+	}
+
 	if (setup_info->filter_mode == val)
 		goto exit;
 
@@ -770,7 +776,7 @@ static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
  exit:
 	mutex_unlock(&st->lock);
 
-	return 0;
+	return ret;
 }
 
 static int ad4130_get_filter_mode(struct iio_dev *indio_dev,
@@ -835,7 +841,14 @@ static int ad4130_set_channel_pga(struct ad4130_state *st, unsigned int channel,
 		return -EINVAL;
 
 	mutex_lock(&st->lock);
+	if (chan_info->enabled) {
+		ret = -EBUSY;
+		goto exit;
+	}
+
 	setup_info->pga = i;
+
+exit:
 	mutex_unlock(&st->lock);
 
 	return ret;
@@ -853,6 +866,11 @@ static int ad4130_set_channel_freq(struct ad4130_state *st,
 	int ret;
 
 	mutex_lock(&st->lock);
+	if (chan_info->enabled) {
+		ret = -EBUSY;
+		goto exit;
+	}
+
 	filter_config = &ad4130_filter_configs[setup_info->filter_mode];
 	if (!filter_config->fs_max) {
 		ret = -EINVAL;
