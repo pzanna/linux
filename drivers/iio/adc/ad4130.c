@@ -784,8 +784,7 @@ static int ad4130_get_filter_mode(struct iio_dev *indio_dev,
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	unsigned int channel = chan->scan_index;
-	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
-	struct ad4130_setup_info *setup_info = &chan_info->setup;
+	struct ad4130_setup_info *setup_info = &st->chans_info[channel].setup;
 	enum ad4130_filter_mode filter_mode;
 
 	mutex_lock(&st->lock);
@@ -905,8 +904,7 @@ static int ad4130_get_channel_freq(struct ad4130_state *st,
 				   int *val, int *val2, bool db3)
 {
 	const struct ad4130_filter_config *filter_config;
-	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
-	struct ad4130_setup_info *setup_info = &chan_info->setup;
+	struct ad4130_setup_info *setup_info = &st->chans_info[channel].setup;
 
 	mutex_lock(&st->lock);
 	filter_config = &ad4130_filter_configs[setup_info->filter_mode];
@@ -983,8 +981,7 @@ static int ad4130_read_raw(struct iio_dev *indio_dev,
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	unsigned int channel = chan->scan_index;
-	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
-	struct ad4130_setup_info *setup_info = &chan_info->setup;
+	struct ad4130_setup_info *setup_info = &st->chans_info[channel].setup;
 
 	switch (info) {
 	case IIO_CHAN_INFO_RAW:
@@ -1016,8 +1013,7 @@ static int ad4130_read_avail(struct iio_dev *indio_dev,
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	unsigned int channel = chan->scan_index;
-	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
-	struct ad4130_setup_info *setup_info = &chan_info->setup;
+	struct ad4130_setup_info *setup_info = &st->chans_info[channel].setup;
 	const struct ad4130_filter_config *filter_config;
 
 	switch (info) {
