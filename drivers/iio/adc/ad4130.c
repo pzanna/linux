@@ -230,7 +230,6 @@ struct ad4130_setup_info {
 };
 
 struct ad4130_chan_info {
-	bool				enabled;
 	u32				iout0;
 	u32				iout1;
 	struct ad4130_setup_info	setup;
@@ -499,18 +498,9 @@ static int ad4130_set_mode(struct ad4130_state *st, enum ad4130_mode mode)
 static int ad4130_set_channel_enable(struct ad4130_state *st,
 				     unsigned int channel, bool status)
 {
-	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
-	int ret;
-
-	ret = regmap_update_bits(st->regmap, AD4130_REG_CHANNEL_X(channel),
-				 AD4130_CHANNEL_EN_MASK,
-				 status ? AD4130_CHANNEL_EN_MASK : 0);
-	if (ret)
-		return ret;
-
-	chan_info->enabled = status;
-
-	return 0;
+	return regmap_update_bits(st->regmap, AD4130_REG_CHANNEL_X(channel),
+				  AD4130_CHANNEL_EN_MASK,
+				  status ? AD4130_CHANNEL_EN_MASK : 0);
 }
 
 static int ad4130_set_watermark_interrupt_en(struct ad4130_state *st, bool en)
