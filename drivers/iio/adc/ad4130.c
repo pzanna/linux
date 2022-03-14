@@ -227,12 +227,19 @@ struct ad4130_setup_info {
 	bool				ref_bufm;
 	u32				ref_sel;
 	enum ad4130_filter_mode		filter_mode;
+	unsigned int			enabled_channels;
+	unsigned int			channels;
 };
+
+#define AD4130_SETUP_SIZE	offsetof(struct ad4130_setup_info, \
+					 enabled_channels)
 
 struct ad4130_chan_info {
 	u32				iout0;
 	u32				iout1;
+	bool				enabled;
 	struct ad4130_setup_info	setup;
+	int				slot;
 };
 
 struct ad4130_filter_config {
@@ -263,6 +270,7 @@ struct ad4130_state {
 
 	struct iio_chan_spec		chans[AD4130_MAX_CHANNELS];
 	struct ad4130_chan_info		chans_info[AD4130_MAX_CHANNELS];
+	struct ad4130_setup_info	setups_info[AD4130_MAX_SETUPS];
 	enum ad4130_pin_function	pins_fn[AD4130_MAX_ANALOG_PINS];
 	int				scale_tbls[AD4130_REF_SEL_MAX]
 						  [AD4130_PGA_NUM][2];
@@ -495,14 +503,6 @@ static int ad4130_set_mode(struct ad4130_state *st, enum ad4130_mode mode)
 				  FIELD_PREP(AD4130_MODE_MASK, mode));
 }
 
-static int ad4130_set_channel_enable(struct ad4130_state *st,
-				     unsigned int channel, bool status)
-{
-	return regmap_update_bits(st->regmap, AD4130_REG_CHANNEL_X(channel),
-				  AD4130_CHANNEL_EN_MASK,
-				  status ? AD4130_CHANNEL_EN_MASK : 0);
-}
-
 static int ad4130_set_watermark_interrupt_en(struct ad4130_state *st, bool en)
 {
 	return regmap_update_bits(st->regmap, AD4130_REG_FIFO_CONTROL,
@@ -581,6 +581,165 @@ static irqreturn_t ad4130_irq_handler(int irq, void *private)
 		complete(&st->completion);
 
 	return IRQ_HANDLED;
+}
+
+
+static bool ad4130_is_same_setup(struct ad4130_setup_info *setup_a,
+				 struct ad4130_setup_info *setup_b)
+{
+	return !memcmp(setup_a, setup_b, AD4130_SETUP_SIZE);
+}
+
+static void ad4130_copy_setup(struct ad4130_setup_info *dst,
+			      struct ad4130_setup_info *src)
+{
+	memcpy(dst, src, AD4130_SETUP_SIZE);
+}
+
+static int ad4130_find_slot(struct ad4130_state *st,
+			    struct ad4130_setup_info *target_setup_info,
+			    bool *overwrite)
+{
+	unsigned int slot = -EINVAL;
+	unsigned int i;
+
+	for (i = 0; i < AD4130_MAX_SETUPS; i++) {
+		struct ad4130_setup_info *setup_info = &st->setups_info[i];
+
+		/* Ignore all setups which are used by enabled channels. */
+		if (setup_info->enabled_channels)
+			continue;
+
+		/* Immediately accept a matching setup info. */
+		if (ad4130_is_same_setup(target_setup_info, setup_info))
+			return i;
+
+		/* Find the least used slot. */
+		if (slot < 0 ||
+		    setup_info->channels < st->setups_info[slot].channels)
+			slot = i;
+	}
+
+	if (slot >= 0)
+		*overwrite = true;
+
+	return slot;
+}
+
+static void ad4130_unlink_slot(struct ad4130_state *st, unsigned int slot)
+{
+	struct ad4130_setup_info *setup_info = &st->setups_info[slot];
+	unsigned int i;
+
+	for (i = 0; i < AD4130_MAX_CHANNELS; i++) {
+		struct ad4130_chan_info *chan_info = &st->chans_info[i];
+
+		if (chan_info->slot != slot)
+			continue;
+
+		chan_info->slot = -1;
+		setup_info->channels--;
+	}
+}
+
+static int ad4130_link_channel_slot(struct ad4130_state *st,
+				    unsigned int channel, unsigned int slot)
+{
+	struct ad4130_setup_info *setup_info = &st->setups_info[slot];
+	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
+	int ret;
+
+	ret = regmap_update_bits(st->regmap, AD4130_REG_CHANNEL_X(channel),
+				 AD4130_SETUP_MASK,
+				 FIELD_PREP(AD4130_SETUP_MASK, slot));
+	if (ret)
+		return ret;
+
+	chan_info->slot = slot;
+	setup_info->channels++;
+
+	return 0;
+}
+
+static int ad4130_write_slot_setup(struct ad4130_state *st,
+				   unsigned int slot,
+				   struct ad4130_setup_info *setup_info)
+{
+	unsigned int val;
+	int ret;
+
+	val = FIELD_PREP(AD4130_IOUT1_VAL_MASK, setup_info->iout0_val) |
+	      FIELD_PREP(AD4130_IOUT1_VAL_MASK, setup_info->iout1_val) |
+	      FIELD_PREP(AD4130_BURNOUT_MASK, setup_info->burnout) |
+	      FIELD_PREP(AD4130_REF_BUFP_MASK, setup_info->ref_bufp) |
+	      FIELD_PREP(AD4130_REF_BUFM_MASK, setup_info->ref_bufm) |
+	      FIELD_PREP(AD4130_REF_SEL_MASK, setup_info->ref_sel) |
+	      FIELD_PREP(AD4130_PGA_MASK, setup_info->pga);
+
+	ret = regmap_write(st->regmap, AD4130_REG_CONFIG_X(slot), val);
+	if (ret)
+		return ret;
+
+	val = FIELD_PREP(AD4130_FILTER_MODE_MASK, setup_info->filter_mode) |
+	      FIELD_PREP(AD4130_FILTER_SELECT_MASK, setup_info->fs);
+
+	ret = regmap_write(st->regmap, AD4130_REG_FILTER_X(slot), val);
+	if (ret)
+		return ret;
+
+	ad4130_copy_setup(&st->setups_info[slot], setup_info);
+
+	return 0;
+}
+
+static int ad4130_write_channel_setup(struct ad4130_state *st,
+				      unsigned int channel)
+{
+	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
+	struct ad4130_setup_info *setup_info = &chan_info->setup;
+	bool overwrite = false;
+	int slot;
+	int ret;
+
+	if (chan_info->slot >= 0)
+		return 0;
+
+	slot = ad4130_find_slot(st, setup_info, &overwrite);
+	if (slot < 0)
+		return slot;
+
+	if (overwrite) {
+		ad4130_unlink_slot(st, slot);
+
+		ret = ad4130_write_slot_setup(st, slot, setup_info);
+		if (ret)
+			return ret;
+	}
+
+	return ad4130_link_channel_slot(st, channel, slot);
+}
+
+static int ad4130_set_channel_enable(struct ad4130_state *st,
+				     unsigned int channel, bool status)
+{
+	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
+	int ret;
+
+	if (status) {
+		ret = ad4130_write_channel_setup(st, channel);
+		if (ret)
+			return ret;
+	}
+
+	ret = regmap_update_bits(st->regmap, AD4130_REG_CHANNEL_X(channel),
+				 AD4130_CHANNEL_EN_MASK,
+				 status ? AD4130_CHANNEL_EN_MASK : 0);
+	if (ret)
+		return ret;
+
+	chan_info->enabled = status;
+
+	return 0;
 }
 
 static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
@@ -1284,6 +1443,7 @@ static int ad4130_parse_fw_channel(struct iio_dev *indio_dev,
 	}
 
 	chan_info = &st->chans_info[reg];
+	chan_info->slot = -1;
 	chan->scan_index = reg;
 
 	ret = fwnode_property_read_u32_array(child, "adi,diff-channels", pins,
