@@ -1,6 +1,7 @@
 config MAC80211
 	tristate "Generic IEEE 802.11 Networking Stack (mac80211)"
 	depends on CFG80211
+	depends on WP4
 	select CRYPTO
 	select CRYPTO_ARC4
 	select CRYPTO_AES

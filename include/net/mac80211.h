@@ -1211,6 +1211,11 @@ struct ieee80211_rx_status {
 	u8 chains;
 	s8 chain_signal[IEEE80211_MAX_CHAINS];
 	u8 ampdu_delimiter_crc;
+	u8 zero_length_psdu_type;
+    int aux_1;
+    int aux_2;
+    u32 aux_3;
+    u32 aux_4;
 };
 
 /**

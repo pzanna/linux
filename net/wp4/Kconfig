@@ -1,0 +1,11 @@
+#
+# WP4 P4 Driver
+#
+
+config WP4
+	bool "WP4 P4 Driver"
+	---help---
+	  WP4 P4 Driver
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called lapb.  If unsure, say N.
