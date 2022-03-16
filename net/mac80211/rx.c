@@ -4267,7 +4267,7 @@ void ieee80211_rx_napi(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
 
 	WARN_ON_ONCE(softirq_count() == 0);
 
-	wp4 = wp4_packet_in(pdata_tmp, len,0);
+	wp4 = wp4_packet_in(skb->data, skb->len,0);
 
 	if (WARN_ON(status->band >= NUM_NL80211_BANDS))
 		goto drop;
