@@ -3,7 +3,9 @@
 #
 
 config WP4
-	bool "WP4 P4 Driver"
+	tristate "WP4 P4 Driver"
+	default m
+	
 	---help---
 	  WP4 P4 Driver
 

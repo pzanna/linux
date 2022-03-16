@@ -34,6 +34,20 @@
 #include "wme.h"
 #include "rate.h"
 
+extern int wp4_packet_in(u8 *p_uc_data, u16 wp4_ul_size, u8 port);
+
+static inline void dump_rx_packet(u8 *ptr)
+{
+	int i;
+
+	printk("###############################################\n");
+	for (i = 0; i < 64; i = i + 16)
+		printk("%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\n", *(ptr + i),
+		*(ptr + i + 1), *(ptr + i + 2) , *(ptr + i + 3) , *(ptr + i + 4), *(ptr + i + 5), *(ptr + i + 6), *(ptr + i + 7),
+		*(ptr + i + 8), *(ptr + i + 9), *(ptr + i + 10) , *(ptr + i + 11) , *(ptr + i + 12), *(ptr + i + 13), *(ptr + i + 14), *(ptr + i + 15));
+	printk("###############################################\n\n");
+}
+
 static inline void ieee80211_rx_stats(struct net_device *dev, u32 len)
 {
 	struct pcpu_sw_netstats *tstats = this_cpu_ptr(dev->tstats);
@@ -4245,12 +4259,15 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 void ieee80211_rx_napi(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
 		       struct sk_buff *skb, struct napi_struct *napi)
 {
+	int wp4 = 0;
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_rate *rate = NULL;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 
 	WARN_ON_ONCE(softirq_count() == 0);
+
+	wp4 = wp4_packet_in(pdata_tmp, len,0);
 
 	if (WARN_ON(status->band >= NUM_NL80211_BANDS))
 		goto drop;
