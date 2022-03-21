@@ -53,7 +53,7 @@ void dump_rx_packet(u8 *ptr, u16 wp4_ul_size)
 {
     int i;
     u16 j = wp4_ul_size;
-    if (j > 256) j = 256;
+    if (j > 128) j = 128;
 
     printk("\n");
     printk("***********************************************\n");
@@ -65,9 +65,9 @@ void dump_rx_packet(u8 *ptr, u16 wp4_ul_size)
     {
         if ((*(ptr + i) > 48) & (*(ptr + i) < 127)) 
         {
-            printk("%c", *(ptr + i));
+            //printk("%c", *(ptr + i));
         } else {
-            printk(".");
+            //printk(".");
         }   
     }
     printk("***********************************************\n");
@@ -299,8 +299,77 @@ int state_update(int state_input)
  */
 int dev_ident(struct swtch_lookup_tbl_key *key)
 {
+    int j;
+    int debug_level = 0;
+    int tpCount = 0;
+    int fnCount = 0;
+    int tpScore = 0;
+    int fnScore = 0;
+    int tpExp = 0;
+    int fnExp = 0;
+    int tpMCC = 0;
+    int fnMCC = 0;
+    u64 total_acc = 0;
+
     printk("WP4: dev_ident called. %d\n", key->headers_frameCtrl_subType_exact);
-    return 0;
+    if (flow_table->last_entry < 5) return 0;      // not enough table entries for a indentification.
+
+    for(j=0;j<flow_table->last_entry;j++)
+    {
+        if (flow_table->key[j].headers_mac80211_Addr2_class == key->headers_mac80211_Addr2_class && (flow_table->rule_data[j].experience >= MIN_MATCH_EXP))
+        {
+            if (((flow_table->key[j].headers_rfFeatures_rate_idx_exact == key->headers_rfFeatures_rate_idx_exact) || (flow_table->scope[j].headers_rfFeatures_rate_idx_exact == false)) &&
+                ((key->headers_rfFeatures_rssi_max < flow_table->key[j].headers_rfFeatures_rssi_max) || (flow_table->scope[j].headers_rfFeatures_rssi_max == false)) &&
+                ((key->headers_rfFeatures_rssi_min > flow_table->key[j].headers_rfFeatures_rssi_min) || (flow_table->scope[j].headers_rfFeatures_rssi_min == false)) &&
+                ((key->headers_rfFeatures_phaseOffset_max < flow_table->key[j].headers_rfFeatures_phaseOffset_max) || (flow_table->scope[j].headers_rfFeatures_phaseOffset_max == false)) &&
+                ((key->headers_rfFeatures_phaseOffset_min > flow_table->key[j].headers_rfFeatures_phaseOffset_min) || (flow_table->scope[j].headers_rfFeatures_phaseOffset_min == false)) &&
+                ((key->headers_rfFeatures_pilotOffset_max < flow_table->key[j].headers_rfFeatures_pilotOffset_max) || (flow_table->scope[j].headers_rfFeatures_pilotOffset_max == false)) &&
+                ((key->headers_rfFeatures_pilotOffset_min >flow_table->key[j].headers_rfFeatures_pilotOffset_min) || (flow_table->scope[j].headers_rfFeatures_pilotOffset_min == false)) &&
+                ((key->headers_rfFeatures_magSq_max < flow_table->key[j].headers_rfFeatures_magSq_max) || (flow_table->scope[j].headers_rfFeatures_magSq_max == false)) &&
+                ((key->headers_rfFeatures_magSq_min > flow_table->key[j].headers_rfFeatures_magSq_min) || (flow_table->scope[j].headers_rfFeatures_magSq_min == false)))
+            {
+                // Correct prediction - True Positive
+                tpCount++;
+                tpScore += flow_table->rule_data[j].f_score;
+                tpExp += flow_table->rule_data[j].experience;
+                tpMCC += flow_table->rule_data[j].mcc;
+                printk("*** True Positive *** \n");
+            } else {
+                // Incorrectly missed prediction - False Negative
+                fnCount++;
+                fnScore += flow_table->rule_data[j].f_score;
+                fnExp += flow_table->rule_data[j].experience;
+                fnMCC += flow_table->rule_data[j].mcc;
+                printk("*** False Negitive *** \n");
+            }
+        } 
+
+    }
+    // Outcome after each rule is evaluated
+    if (tpScore == 0) tpScore = 1;
+    if (fnScore == 0) fnScore = 1;
+    
+    total_acc = ((tpScore*10000) / (fnScore + tpScore));
+
+    if (total_acc > (IDENT_CUTTOFF*100))
+    {
+        if (debug_level > 1 && debug_level < 10)
+        {
+            printk("*** WP4:(TP: %d, FN: %d - TPS: %d, FNS: %d - TPExp: %d, FNExp: %d - TPmcc: %d, FNmcc: %d)", tpCount, fnCount, tpScore, fnScore, tpExp, fnExp, tpMCC, fnMCC);
+            printk(" - Frame MAC does match features (%llu%% - %d%%) ***\n", total_acc, (tpMCC / fnMCC));
+        }
+
+    } else
+    {
+        if (debug_level > 0 && debug_level != 98)
+        {
+            printk("!!! WP4: FALSE NEGATIVE (%llu%% - %d%%) !!! - ", (total_acc/100), (tpMCC / fnMCC));
+            printk("(TP: %d, FN: %d - TPS: %d, FNS: %d - TPExp: %d, FNExp: %d - TPmcc: %d, FNmcc: %d)\n", tpCount, fnCount, tpScore, fnScore, tpExp, fnExp, tpMCC, fnMCC);
+        }
+        if (debug_level > 0 && debug_level != 98) printk(" MAC: %llX, Rate_IDX: %d, RSSI: %d, Phase Offset: %d, Pilot Offset: %d, MagSQ: %d \n", key->headers_mac80211_Addr2_class, key->headers_rfFeatures_rate_idx_exact, key->headers_rfFeatures_rssi_max, key->headers_rfFeatures_phaseOffset_max, key->headers_rfFeatures_pilotOffset_max, key->headers_rfFeatures_magSq_max);
+    }
+
+    return (int)total_acc;
 }
 
 /*
@@ -312,6 +381,6 @@ int dev_ident(struct swtch_lookup_tbl_key *key)
 int ssid_check(u8 *p_uc_data, u16 wp4_ul_size)
 {
     printk("WP4: ssid_check called.\n");
-    //dump_rx_packet(p_uc_data, wp4_ul_size);
+    dump_rx_packet(p_uc_data, wp4_ul_size);
     return 0;
 }

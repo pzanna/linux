@@ -4260,6 +4260,9 @@ void ieee80211_rx_napi(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
 		       struct sk_buff *skb, struct napi_struct *napi)
 {
 	int wp4 = 0;
+	int wp4_len = 0;
+	u8 wp4_buffer[288];
+	u8 *pWP4 = &wp4_buffer[0];
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_rate *rate = NULL;
 	struct ieee80211_supported_band *sband;
@@ -4267,7 +4270,20 @@ void ieee80211_rx_napi(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
 
 	WARN_ON_ONCE(softirq_count() == 0);
 
-	wp4 = wp4_packet_in(skb->data, skb->len,0);
+	printk("!!** mac80211: Signal: %d / Phase offset: %d / Pilot offset: %d / Mag Sq: %d / Unused: %08X\n",  status->signal, status->aux_1, status->aux_2, status->aux_3, status->aux_4);
+
+	memset(pWP4, 0, 288);
+
+	memcpy(pWP4+8, &status->signal, 4);
+	memcpy(pWP4+16, &status->aux_1, 4);
+	memcpy(pWP4+20, &status->aux_2, 4);
+	memcpy(pWP4+24, &status->aux_3, 4);
+	memcpy(pWP4+28, &status->aux_4, 4);
+
+	wp4_len = skb->len;
+	if (wp4_len > 256) wp4_len = 256;
+	memcpy(pWP4+32, skb->data, wp4_len);
+	wp4 = wp4_packet_in(pWP4, wp4_len+32,0);
 
 	if (WARN_ON(status->band >= NUM_NL80211_BANDS))
 		goto drop;

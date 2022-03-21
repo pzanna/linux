@@ -162,6 +162,8 @@ int wp4_packet_in(u8 *p_uc_data, u16 wp4_ul_size, u8 port){
         wp4_packetOffsetInBits += 1;
 
         printk("** WP4: Packet Received (%d:%d) PV:%d toDS:%d fromDS:%d, size = %d **\n", headers.frameCtrl.frameType, headers.frameCtrl.subType, headers.frameCtrl.protoVer, headers.frameCtrl.toDS, headers.frameCtrl.fromDS, wp4_ul_size);
+        printk("** WP4: Signal: %d / Phase offset: %d / Pilot offset: %d / Mag Sq: %d / Unused: %08X\n",  headers.rfFeatures.rssi, headers.rfFeatures.phaseOffset, headers.rfFeatures.pilotOffset, headers.rfFeatures.magSq, headers.rfFeatures.aux_4);
+        dump_rx_packet(p_uc_data, wp4_ul_size);
 
         headers.frameCtrl.wp4_valid = 1;
         switch (headers.frameCtrl.protoVer) {
@@ -380,6 +382,7 @@ int wp4_table_lookup(struct swtch_lookup_tbl_key *key) {
     /* LCS Prediction Algorithm */
 
     int dev_id = dev_ident(key);
+    printk("** WP4: Dev_indent returned %d **\n", dev_id);
     if (dev_id >= IDENT_CUTTOFF) return swtch_ID_GOOD_action;
     if (dev_id < IDENT_CUTTOFF) return swtch_ID_BAD_action;
 

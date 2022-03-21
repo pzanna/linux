@@ -7,7 +7,7 @@
 
 #define TABLE_SIZE 1024
 #define IDENT_CUTTOFF 55
-
+#define MIN_MATCH_EXP 200
 
 #include <linux/types.h>
 
@@ -96,13 +96,19 @@ struct rule_scope {
 };
 
 struct rule_metadata {
-    u8 valid;
-    u64 numerosity;
-    u64 match_count;
-    u64 correct_count;
-    u64 accuracy;
-    u64 fitness;
-    u64 age;
+    u64 time_added;     // Time of rule creation
+    int last_match;
+    int experience;     // Number of times a rule is in a match set
+    int source;         // Source of the rule - 0 = cover, 1 = GA
+    int true_pos;       // Number of times a rule has correctly matched
+    int true_neg;       // Number of times a rule has correctly NOT matched
+    int false_pos;      // Number of times a rule has incorrectly matched
+    int false_neg;      // Number of times a rule has incorrectly NOT matched
+    u32 sensitivity;    // TP / (TP+FN)
+    u32 specificity;    // TN / (TN+FP)
+    u32 accuracy;       // (TP+TN) / EXP
+    u32 f_score;        // TP / TP + 0.5(FP+FN)
+    u32 mcc;            // ((TP * TN) - (FP * FN)) / SQRT((TP + FP) * (TP + FN) * (TN + FP) * (TN + FN))
 };
 
 struct wp4_map_def {
